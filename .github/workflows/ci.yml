@@ -10,7 +10,7 @@ on:
 
 jobs:
   test:
-    name: Test (Node ${{ matrix.node-version }})
+    name: Test
     runs-on: ubuntu-latest
     
     strategy:
