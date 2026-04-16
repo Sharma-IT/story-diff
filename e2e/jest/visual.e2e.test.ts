@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import { StoryDiff, VisualRegressionError, SizeMismatchError } from '../../src/index.js';
+import { StoryDiff, VisualRegressionError, SizeMismatchError, BaselineMissingError } from '../../src/index.js';
 import type { BatchResult } from '../../src/story-diff.types.js';
 
 describe('Story Diff (Jest E2E)', () => {
@@ -181,4 +181,21 @@ describe('Story Diff (Jest E2E)', () => {
     expect(result.match).toBe(true);
     await updateDiff.teardown();
   }, 60000);
+
+  it('throws BaselineMissingError when baseline is missing and failOnMissingBaseline is true', async () => {
+    const strictDiff = new StoryDiff({
+      storybookUrl: 'http://localhost:6006',
+      snapshotsDir,
+      failOnMissingBaseline: true,
+    });
+    await strictDiff.setup();
+
+    const promise = strictDiff.assertMatchesBaseline('components-button--primary', {
+      snapshotName: 'never-created-baseline-jest',
+      viewport: 'desktop',
+    });
+
+    await expect(promise).rejects.toThrow(BaselineMissingError);
+    await strictDiff.teardown();
+  }, 30000);
 });
