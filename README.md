@@ -17,8 +17,8 @@
 
 Test-framework-agnostic visual regression and snapshot testing for Storybook components using Puppeteer. Story Diff enables you to capture screenshots of your Storybook stories and compare them against baselines, regardless of whether you use **Vitest**, **Jest**, or any other test runner. It leverages `puppeteer` to load the stories, and a combination of `pixelmatch` & `pngjs` for the image comparison.
 
-## Table of Contents
-
+<details>
+<summary>Table of Contents</summary>
 - [Story Diff](#story-diff)
   - [Installation](#installation)
   - [Quick Start](#quick-start)
@@ -76,6 +76,8 @@ Test-framework-agnostic visual regression and snapshot testing for Storybook com
   - [Contributing](#contributing)
     - [Development Setup](#development-setup)
   - [License](#license)
+
+</details>
 
 ## Installation
 
