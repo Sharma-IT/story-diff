@@ -1,0 +1,32 @@
+# Source files (keep dist/)
+src/
+tsconfig.json
+tsconfig.build.json
+vitest.config.ts
+
+# Tests
+e2e/
+**/*.test.ts
+**/__tests__/
+
+# Test artifacts
+__diff_output__/
+*-current.png
+
+# Development files
+.kiro/
+.git/
+.gitignore
+node_modules/
+*.log
+*.tsbuildinfo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
