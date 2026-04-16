@@ -49,6 +49,8 @@ export type CaptureOptions = {
 
 export type AssertOptions = CaptureOptions & {
   readonly snapshotName: string;
+  /** Optional override for comparison configuration */
+  readonly comparison?: ComparisonConfig;
 };
 
 export type ComparisonResult = {

@@ -1,4 +1,5 @@
 import type { Page } from 'puppeteer';
+import { StorybookConnectionError } from './errors.js';
 
 /**
  * Build an iframe URL for a Storybook story.
@@ -51,11 +52,11 @@ export async function waitForStorybookReady(
   });
 
   if (!response) {
-    throw new Error(`No response from Storybook at ${base}`);
+    throw new StorybookConnectionError(base, 'No response');
   }
 
   if (!response.ok()) {
-    throw new Error(`Storybook returned HTTP ${response.status()} at ${base}`);
+    throw new StorybookConnectionError(base, `HTTP ${response.status()}`);
   }
 
   // Wait for any known Storybook UI element to appear
@@ -72,8 +73,9 @@ export async function waitForStorybookReady(
   }
 
   if (!found) {
-    throw new Error(
-      `Storybook UI did not load at ${base}. None of the expected selectors were found.`,
+    throw new StorybookConnectionError(
+      base,
+      'Storybook UI did not load. None of the expected selectors were found.'
     );
   }
 }

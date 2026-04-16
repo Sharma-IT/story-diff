@@ -2,6 +2,7 @@ import pixelmatch from 'pixelmatch';
 import { PNG } from 'pngjs';
 
 import type { ComparisonConfig } from './story-diff.types.js';
+import { SizeMismatchError } from './errors.js';
 
 type CompareResult = {
   readonly match: boolean;
@@ -29,8 +30,11 @@ export function compareImages(
     actualPng.width !== expectedPng.width || actualPng.height !== expectedPng.height;
 
   if (hasSizeMismatch && !allowSizeMismatch) {
-    throw new Error(
-      `Image size mismatch: actual ${actualPng.width}x${actualPng.height} vs expected ${expectedPng.width}x${expectedPng.height}`,
+    throw new SizeMismatchError(
+      actualPng.width,
+      actualPng.height,
+      expectedPng.width,
+      expectedPng.height
     );
   }
 
@@ -38,11 +42,18 @@ export function compareImages(
     const maxWidth = Math.max(actualPng.width, expectedPng.width);
     const maxHeight = Math.max(actualPng.height, expectedPng.height);
     const totalPixels = maxWidth * maxHeight;
+    const diffPixels = totalPixels;
+    const diffPercentage = 100;
+
+    const isWithinThreshold =
+      failureThresholdType === 'percent'
+        ? diffPercentage <= failureThreshold
+        : diffPixels <= failureThreshold;
 
     return {
-      match: false,
-      diffPixels: totalPixels,
-      diffPercentage: 100,
+      match: isWithinThreshold,
+      diffPixels,
+      diffPercentage,
       diffImage: null,
     };
   }

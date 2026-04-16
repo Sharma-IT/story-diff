@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { PNG } from 'pngjs';
 
 import { compareImages } from '../compare.js';
+import { SizeMismatchError } from '../errors.js';
 
 function createSolidPng(
   width: number,
@@ -132,7 +133,14 @@ describe('compareImages', () => {
     const large = createSolidPng(20, 20, { r: 255, g: 0, b: 0, a: 255 });
 
     // Act & Assert
-    expect(() => compareImages(small, large)).toThrow(/size mismatch/i);
+    expect(() => compareImages(small, large)).toThrow(SizeMismatchError);
+    try {
+      compareImages(small, large);
+    } catch (e) {
+      if (e instanceof SizeMismatchError) {
+        expect(e.message).toMatch(/actual 10x10 vs expected 20x20/);
+      }
+    }
   });
 
   // Requirement: allowSizeMismatch should return mismatch instead of throwing

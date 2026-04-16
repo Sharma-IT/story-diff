@@ -2,7 +2,7 @@
 
 # Story Diff
 
-<img width="442" height="398" alt="cropped-image" src="https://github.com/user-attachments/assets/4726057a-1472-40e4-b6c6-92f47bbc435e" />
+<img width="442" height="398" alt="logo" src="https://github.com/user-attachments/assets/4726057a-1472-40e4-b6c6-92f47bbc435e" />
 
 <br>
 
@@ -103,6 +103,35 @@ describe('Storybook Visual Regression', () => {
 
 *Tip: For CI, use `wait-on` and `concurrently` to script this effectively.*
 
+## Error Handling
+
+Story Diff provides custom error classes for robust error handling in your test suites:
+
+```typescript
+import { 
+  VisualRegressionError, 
+  SizeMismatchError, 
+  NotInitializedError 
+} from 'story-diff';
+
+try {
+  await diff.assertMatchesBaseline('button--primary', { snapshotName: 'btn' });
+} catch (e) {
+  if (e instanceof VisualRegressionError) {
+    console.log(`Diff: ${e.diffPercentage}%`);
+    console.log(`Diff image saved at: ${e.diffPath}`);
+  } else if (e instanceof SizeMismatchError) {
+    console.error('Snapshot dimensions have changed!');
+  }
+}
+```
+
+Notable errors include:
+- `VisualRegressionError`: Thrown when pixel comparison exceeds the threshold.
+- `SizeMismatchError`: Thrown when new snapshot dimensions don't match the baseline.
+- `StorybookConnectionError`: Thrown when the Storybook server is unreachable or fails to load.
+- `NotInitializedError`: Thrown if methods are called before `await diff.setup()`.
+
 ## First Run & Updating Baselines
 
 On the **first run**, Story Diff will automatically create baseline PNGs in your `snapshotsDir`. 
@@ -147,6 +176,21 @@ type StoryDiffConfig = {
     failureThresholdType?: 'percent' | 'pixel';
     allowSizeMismatch?: boolean;  // Defaults: false
   };
+```
+
+### Overriding Comparison Config
+
+You can also override the `comparison` configuration for a specific assertion:
+
+```typescript
+await diff.assertMatchesBaseline('components-button--secondary', {
+  snapshotName: 'button-primary',
+  comparison: {
+    failureThreshold: 5, // Allow up to 5% diff for this specific test
+    failureThresholdType: 'percent'
+  }
+});
+```
 
   // Optional: Force overwrite valid baselines
   update?: boolean;

@@ -9,11 +9,17 @@ import type {
   AssertOptions,
   BatchResult,
   CaptureOptions,
+  ComparisonConfig,
   ComparisonResult,
   StoryDiffConfig,
   StoryVisualTest,
   Viewport,
 } from './story-diff.types.js';
+import {
+  NotInitializedError,
+  ViewportNotFoundError,
+  VisualRegressionError,
+} from './errors.js';
 
 const DEFAULT_VIEWPORTS: Readonly<Record<string, Viewport>> = {
   mobile: { name: 'mobile', width: 393, height: 852 },
@@ -61,8 +67,12 @@ export class StoryDiff {
   async compareWithBaseline(
     screenshot: Buffer,
     snapshotName: string,
+    comparisonOverride?: ComparisonConfig,
   ): Promise<ComparisonResult> {
     const { snapshotsDir, comparison = {}, update = false } = this.config;
+    const mergedComparison = comparisonOverride 
+      ? { ...comparison, ...comparisonOverride }
+      : comparison;
 
     if (update) {
       const snapshotPath = saveBaseline(snapshotsDir, snapshotName, screenshot);
@@ -92,7 +102,7 @@ export class StoryDiff {
       };
     }
 
-    const compareResult = compareImages(screenshot, existing, comparison);
+    const compareResult = compareImages(screenshot, existing, mergedComparison);
     const snapshotPath = `${snapshotsDir}/${snapshotName}.png`;
 
     let diffPath: string | null = null;
@@ -120,14 +130,19 @@ export class StoryDiff {
     options: AssertOptions,
   ): Promise<ComparisonResult> {
     const screenshot = await this.captureStory(storyId, options);
-    const result = await this.compareWithBaseline(screenshot, options.snapshotName);
+    const result = await this.compareWithBaseline(
+      screenshot,
+      options.snapshotName,
+      options.comparison,
+    );
 
     if (!result.match && !result.baselineCreated) {
-      const diffInfo = result.diffPath ? `\nDiff image: ${result.diffPath}` : '';
-      throw new Error(
-        `Visual regression detected for "${options.snapshotName}".\n` +
-          `Diff: ${result.diffPercentage.toFixed(2)}% (${result.diffPixels} pixels)` +
-          diffInfo,
+      throw new VisualRegressionError(
+        options.snapshotName,
+        result.diffPercentage,
+        result.diffPixels,
+        result.snapshotPath,
+        result.diffPath
       );
     }
 
@@ -173,9 +188,7 @@ export class StoryDiff {
     const resolved = viewports[viewport];
 
     if (!resolved) {
-      throw new Error(
-        `Unknown viewport "${viewport}". Available: ${Object.keys(viewports).join(', ')}`,
-      );
+      throw new ViewportNotFoundError(viewport, Object.keys(viewports));
     }
 
     return resolved;
@@ -183,7 +196,7 @@ export class StoryDiff {
 
   private async getPage(): Promise<Page> {
     if (!this.page) {
-      throw new Error('StoryDiff not initialised. Call setup() first.');
+      throw new NotInitializedError();
     }
     return this.page;
   }
