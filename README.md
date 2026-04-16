@@ -20,8 +20,6 @@ Test-framework-agnostic visual regression and snapshot testing for Storybook com
 ## Table of Contents
 
 - [Story Diff](#story-diff)
-    - [The Completely Free, Open-Source Chromatic Alternative](#the-completely-free-open-source-chromatic-alternative)
-  - [Table of Contents](#table-of-contents)
   - [Installation](#installation)
   - [Quick Start](#quick-start)
     - [Running Tests](#running-tests)
