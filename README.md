@@ -635,6 +635,8 @@ await diff.assertMatchesBaseline('animated-component--default', {
 
 #### Using `concurrently` and `wait-on`
 
+For local development and CI, use these tools to automate Storybook startup:
+
 ```json
 {
   "scripts": {
@@ -654,12 +656,13 @@ jobs:
   visual-tests:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v5
       
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v6
         with:
-          node-version: '20'
+          node-version: '22'
+          cache: 'npm'
       
       - name: Install dependencies
         run: npm ci
@@ -672,7 +675,7 @@ jobs:
       
       - name: Upload diff images
         if: failure()
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v7
         with:
           name: visual-diffs
           path: ./visual-snapshots/*-diff.png
