@@ -1,0 +1,22 @@
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Test artifacts
+__diff_output__/
+*-current.png
+
+# E2E fixture
+e2e/fixture/node_modules/
+e2e/fixture/storybook-static/
+e2e/snapshots/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo

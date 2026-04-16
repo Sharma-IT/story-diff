@@ -1,0 +1,68 @@
+{
+  "name": "story-diff",
+  "version": "0.1.0",
+  "description": "Test-framework-agnostic visual regression testing for Storybook components using Puppeteer",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "test": "vitest run",
+    "test:unit": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "./e2e/run-e2e.sh",
+    "test:e2e:vitest": "vitest run -c e2e/vitest/vitest.config.ts",
+    "test:e2e:jest": "NODE_OPTIONS=--experimental-vm-modules jest --config e2e/jest/jest.config.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "storybook",
+    "visual-regression",
+    "snapshot-testing",
+    "puppeteer",
+    "testing",
+    "visual-testing",
+    "component-testing"
+  ],
+  "author": "Shubham Sharma",
+  "license": "MIT",
+  "dependencies": {
+    "pixelmatch": "^6.0.0",
+    "pngjs": "^7.0.0",
+    "puppeteer": "^24.0.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22.0.0",
+    "@types/pixelmatch": "^5.2.6",
+    "@types/pngjs": "^6.0.5",
+    "concurrently": "^9.2.1",
+    "jest": "^30.3.0",
+    "ts-jest": "^29.4.9",
+    "typescript": "^5.8.0",
+    "vitest": "^3.1.0",
+    "wait-on": "^9.0.5"
+  },
+  "peerDependencies": {
+    "storybook": "^10.0.0"
+  },
+  "peerDependenciesMeta": {
+    "storybook": {
+      "optional": false
+    }
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

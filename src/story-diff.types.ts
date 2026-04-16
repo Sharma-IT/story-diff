@@ -1,0 +1,77 @@
+/**
+ * Public type definitions for Story Diff
+ */
+
+export type Viewport = {
+  readonly name: string;
+  readonly width: number;
+  readonly height: number;
+};
+
+export type BrowserConfig = {
+  readonly headless?: boolean;
+  readonly args?: readonly string[];
+  readonly timeout?: number;
+  readonly executablePath?: string;
+};
+
+export type ComparisonConfig = {
+  /** pixelmatch threshold (0 to 1). Lower = stricter. Default: 0.1 */
+  readonly threshold?: number;
+  /** Acceptable diff as a percentage (0 to 100) or pixel count. Default: 0.02 */
+  readonly failureThreshold?: number;
+  /** Whether failureThreshold is 'percent' or 'pixel'. Default: 'percent' */
+  readonly failureThresholdType?: 'percent' | 'pixel';
+  /** Allow size mismatches between actual and baseline. Default: false */
+  readonly allowSizeMismatch?: boolean;
+};
+
+export type StoryDiffConfig = {
+  readonly storybookUrl: string;
+  readonly snapshotsDir: string;
+  readonly viewports?: Readonly<Record<string, Viewport>>;
+  readonly browser?: BrowserConfig;
+  readonly comparison?: ComparisonConfig;
+  /** When true, baselines are updated instead of compared. Default: false */
+  readonly update?: boolean;
+};
+
+export type CaptureOptions = {
+  /** Viewport name (from config) or inline viewport dimensions */
+  readonly viewport?: string | Viewport;
+  /** Storybook globals to pass (e.g. { theme: 'dark' }) */
+  readonly globals?: Readonly<Record<string, string>>;
+  /** CSS selector to wait for before capturing */
+  readonly waitForSelector?: string;
+  /** Milliseconds to wait after page load before capturing */
+  readonly waitForTimeout?: number;
+};
+
+export type AssertOptions = CaptureOptions & {
+  readonly snapshotName: string;
+};
+
+export type ComparisonResult = {
+  readonly match: boolean;
+  readonly diffPixels: number;
+  readonly diffPercentage: number;
+  readonly diffImage: Buffer | null;
+  readonly baselineCreated: boolean;
+  readonly snapshotPath: string;
+  readonly diffPath: string | null;
+};
+
+export type StoryVisualTest = {
+  readonly componentName: string;
+  readonly storyPath: string;
+  readonly stories: readonly string[];
+  readonly viewports?: readonly string[];
+  readonly globals?: Readonly<Record<string, string>>;
+};
+
+export type BatchResult = {
+  readonly storyId: string;
+  readonly snapshotName: string;
+  readonly viewport: string;
+  readonly result: ComparisonResult;
+};
