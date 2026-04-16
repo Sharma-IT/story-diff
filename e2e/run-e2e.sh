@@ -23,14 +23,19 @@ cd ../..
 
 echo ""
 echo "=> Starting fixture Storybook server..."
+
+trap 'echo ""; echo "Tests interrupted by user"; exit 130' INT
+
 # We use wait-on to wait for the storybook server to be ready before running tests.
 # concurrently lets us spin up storybook and wait-on in parallel.
 npx concurrently \
   --kill-others \
+  --kill-others-on-fail \
   --success first \
+  --raw \
   --names "SB,TESTS" \
   -c "bgBlue,bgMagenta" \
-  "npm run storybook --prefix e2e/fixture" \
+  "npm run storybook --prefix e2e/fixture 2>&1 | grep -v '^$' || true" \
   "npx wait-on http://127.0.0.1:6006/iframe.html -t 60000 && echo 'Storybook ready!' && \
    echo '' && \
    echo '==============================================' && \
