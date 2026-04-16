@@ -10,5 +10,11 @@ const config: StorybookConfig = {
   core: {
     disableTelemetry: true,
   },
+  async viteFinal(config) {
+    config.resolve ??= {};
+    const existingDedupe = Array.isArray(config.resolve.dedupe) ? config.resolve.dedupe : [];
+    config.resolve.dedupe = Array.from(new Set([...existingDedupe, 'react', 'react-dom']));
+    return config;
+  },
 };
 export default config;

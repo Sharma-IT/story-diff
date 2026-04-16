@@ -34,6 +34,8 @@ export type StoryDiffConfig = {
   readonly comparison?: ComparisonConfig;
   /** When true, baselines are updated instead of compared. Default: false */
   readonly update?: boolean;
+  /** When true, missing baselines cause a failure. When false, they are created silently. Default: true */
+  readonly failOnMissingBaseline?: boolean;
 };
 
 export type CaptureOptions = {
@@ -59,6 +61,7 @@ export type ComparisonResult = {
   readonly diffPercentage: number;
   readonly diffImage: Buffer | null;
   readonly baselineCreated: boolean;
+  readonly baselineMissing: boolean;
   readonly snapshotPath: string;
   readonly diffPath: string | null;
 };

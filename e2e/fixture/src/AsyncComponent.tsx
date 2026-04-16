@@ -1,5 +1,4 @@
-// @ts-ignore
-import React, { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 
 export const AsyncComponent = ({ delay = 1000 }: { delay?: number }) => {
   const [ready, setReady] = useState(false);

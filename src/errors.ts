@@ -59,6 +59,15 @@ export class VisualRegressionError extends StoryDiffError {
 }
 
 /**
+ * Thrown when a baseline image is missing and failOnMissingBaseline is true.
+ */
+export class BaselineMissingError extends StoryDiffError {
+  constructor(public readonly snapshotName: string, public readonly snapshotPath: string) {
+    super(`Baseline image missing for "${snapshotName}". Expected at ${snapshotPath}.`);
+  }
+}
+
+/**
  * Thrown when Storybook cannot be reached or fails to load.
  */
 export class StorybookConnectionError extends StoryDiffError {

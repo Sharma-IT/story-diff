@@ -16,6 +16,7 @@ import type {
   Viewport,
 } from './story-diff.types.js';
 import {
+  BaselineMissingError,
   NotInitializedError,
   ViewportNotFoundError,
   VisualRegressionError,
@@ -69,7 +70,12 @@ export class StoryDiff {
     snapshotName: string,
     comparisonOverride?: ComparisonConfig,
   ): Promise<ComparisonResult> {
-    const { snapshotsDir, comparison = {}, update = false } = this.config;
+    const { 
+      snapshotsDir, 
+      comparison = {}, 
+      update = false,
+      failOnMissingBaseline = true 
+    } = this.config;
     const mergedComparison = comparisonOverride 
       ? { ...comparison, ...comparisonOverride }
       : comparison;
@@ -82,6 +88,7 @@ export class StoryDiff {
         diffPercentage: 0,
         diffImage: null,
         baselineCreated: true,
+        baselineMissing: false,
         snapshotPath,
         diffPath: null,
       };
@@ -90,6 +97,19 @@ export class StoryDiff {
     const existing = loadBaseline(snapshotsDir, snapshotName);
 
     if (!existing) {
+      if (failOnMissingBaseline) {
+        return {
+          match: false,
+          diffPixels: 0,
+          diffPercentage: 0,
+          diffImage: null,
+          baselineCreated: false,
+          baselineMissing: true,
+          snapshotPath: `${snapshotsDir}/${snapshotName}.png`,
+          diffPath: null,
+        };
+      }
+
       const snapshotPath = saveBaseline(snapshotsDir, snapshotName, screenshot);
       return {
         match: true,
@@ -97,6 +117,7 @@ export class StoryDiff {
         diffPercentage: 0,
         diffImage: null,
         baselineCreated: true,
+        baselineMissing: false,
         snapshotPath,
         diffPath: null,
       };
@@ -116,6 +137,7 @@ export class StoryDiff {
       diffPercentage: compareResult.diffPercentage,
       diffImage: compareResult.diffImage,
       baselineCreated: false,
+      baselineMissing: false,
       snapshotPath,
       diffPath,
     };
@@ -135,6 +157,10 @@ export class StoryDiff {
       options.snapshotName,
       options.comparison,
     );
+
+    if (result.baselineMissing) {
+      throw new BaselineMissingError(options.snapshotName, result.snapshotPath);
+    }
 
     if (!result.match && !result.baselineCreated) {
       throw new VisualRegressionError(

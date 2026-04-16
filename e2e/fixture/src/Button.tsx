@@ -1,5 +1,3 @@
-// @ts-ignore
-import React from 'react';
 
 export const Button = ({
   primary = false,

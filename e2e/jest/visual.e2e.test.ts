@@ -14,6 +14,7 @@ describe('Story Diff (Jest E2E)', () => {
       comparison: {
         allowSizeMismatch: false,
       },
+      failOnMissingBaseline: false,
     });
 
     await diff.setup();

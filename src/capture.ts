@@ -14,7 +14,7 @@ const STORY_ROOT_SELECTORS = [
   '#root',
 ] as const;
 
-const DEFAULT_WAIT_TIMEOUT = 2_000;
+const DEFAULT_WAIT_TIMEOUT = 0; // No implicit wait - components must be ready or use waitForSelector
 const NAVIGATION_TIMEOUT = 60_000;
 const MAX_RETRIES = 2;
 const RETRY_DELAY = 3_000;

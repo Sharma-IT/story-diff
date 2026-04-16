@@ -2,8 +2,9 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import path from 'node:path';
 
 import { 
-  StoryDiff, 
+  StoryDiff,
   VisualRegressionError, 
+  BaselineMissingError,
   SizeMismatchError,
   NotInitializedError
 } from '../../src/index.js';
@@ -20,6 +21,7 @@ describe('Story Diff (Vitest E2E)', () => {
       comparison: {
         allowSizeMismatch: false,
       },
+      failOnMissingBaseline: false,
     });
 
     await diff.setup();
@@ -194,6 +196,7 @@ describe('Story Diff (Vitest E2E)', () => {
     const nestedDiff = new StoryDiff({
       storybookUrl: 'http://localhost:6006',
       snapshotsDir: nestedDir,
+      failOnMissingBaseline: false,
     });
     await nestedDiff.setup();
 
@@ -241,4 +244,24 @@ describe('Story Diff (Vitest E2E)', () => {
     });
     expect(finalResult.match).toBe(true);
   }, 60_000);
+
+  // Requirement: Prevent silent baseline creation (negative test)
+  // Case: error
+  // Invariant: Throws BaselineMissingError when failOnMissingBaseline is true
+  it('throws BaselineMissingError when baseline is missing and failOnMissingBaseline is true', async () => {
+    const strictDiff = new StoryDiff({
+      storybookUrl: 'http://localhost:6006',
+      snapshotsDir,
+      failOnMissingBaseline: true, // This is the new default, but being explicit for the test
+    });
+    await strictDiff.setup();
+
+    const promise = strictDiff.assertMatchesBaseline('components-button--primary', {
+      snapshotName: 'never-created-baseline',
+      viewport: 'desktop',
+    });
+
+    await expect(promise).rejects.toThrow(BaselineMissingError);
+    await strictDiff.teardown();
+  }, 30_000);
 });

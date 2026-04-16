@@ -110,6 +110,7 @@ Story Diff provides custom error classes for robust error handling in your test 
 ```typescript
 import { 
   VisualRegressionError, 
+  BaselineMissingError,
   SizeMismatchError, 
   NotInitializedError 
 } from 'story-diff';
@@ -128,15 +129,16 @@ try {
 
 Notable errors include:
 - `VisualRegressionError`: Thrown when pixel comparison exceeds the threshold.
+- `BaselineMissingError`: Thrown when a baseline image is expected but not found on disk.
 - `SizeMismatchError`: Thrown when new snapshot dimensions don't match the baseline.
 - `StorybookConnectionError`: Thrown when the Storybook server is unreachable or fails to load.
 - `NotInitializedError`: Thrown if methods are called before `await diff.setup()`.
 
 ## First Run & Updating Baselines
 
-On the **first run**, Story Diff will automatically create baseline PNGs in your `snapshotsDir`. 
+By default, Story Diff expects baseline PNGs to exist in your `snapshotsDir`. If a baseline is missing, the test will fail with a `BaselineMissingError`. This prevents "silent" baseline creation during CI or development.
 
-If your components deliberately change, you can update existing baselines by setting the `update` flag in config to `true` (e.g. controlled via an environment variable).
+To create initial baselines or update existing ones, set the `update` flag in config to `true`.
 
 ```typescript
 const diff = new StoryDiff({
@@ -176,6 +178,12 @@ type StoryDiffConfig = {
     failureThresholdType?: 'percent' | 'pixel';
     allowSizeMismatch?: boolean;  // Defaults: false
   };
+
+  // Optional: Force overwrite or create new baselines. Default: false
+  update?: boolean;
+  // Optional: Fail when baseline is missing. Default: true
+  failOnMissingBaseline?: boolean;
+};
 ```
 
 ### Overriding Comparison Config
@@ -183,16 +191,5 @@ type StoryDiffConfig = {
 You can also override the `comparison` configuration for a specific assertion:
 
 ```typescript
-await diff.assertMatchesBaseline('components-button--secondary', {
-  snapshotName: 'button-primary',
-  comparison: {
-    failureThreshold: 5, // Allow up to 5% diff for this specific test
-    failureThresholdType: 'percent'
-  }
 });
-```
-
-  // Optional: Force overwrite valid baselines
-  update?: boolean;
-};
 ```
