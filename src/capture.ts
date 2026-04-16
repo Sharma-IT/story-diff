@@ -1,6 +1,7 @@
 import type { Page } from 'puppeteer';
 
 import type { CaptureOptions } from './story-diff.types.js';
+import type { Logger } from './logger.js';
 import { buildStoryUrl } from './storybook.js';
 
 const STORY_ROOT_SELECTORS = [
@@ -43,15 +44,21 @@ export async function captureStory(
   storybookUrl: string,
   storyId: string,
   options: CaptureOptions = {},
+  logger?: Logger,
 ): Promise<Buffer> {
   const { globals, waitForSelector, waitForTimeout = DEFAULT_WAIT_TIMEOUT } = options;
 
   const url = buildStoryUrl(storybookUrl, storyId, globals);
+  logger?.debug(`Navigating to: ${url}`);
 
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
     try {
+      if (attempt > 0) {
+        logger?.warn(`Retry attempt ${attempt} for story: ${storyId}`);
+      }
+
       const response = await page.goto(url, {
         waitUntil: 'load',
         timeout: NAVIGATION_TIMEOUT,
@@ -73,10 +80,14 @@ export async function captureStory(
 
       // Wait for custom selector if provided
       if (waitForSelector) {
+        logger?.debug(`Waiting for selector: ${waitForSelector}`);
         await page.waitForSelector(waitForSelector, { timeout: 30_000 });
       }
 
       // Allow render to settle
+      if (waitForTimeout > 0) {
+        logger?.debug(`Waiting ${waitForTimeout}ms for render to settle`);
+      }
       await delay(waitForTimeout);
 
       // Find the story root element
@@ -100,6 +111,7 @@ export async function captureStory(
         throw new Error(`Story element has zero height for ${storyId}`);
       }
 
+      logger?.debug(`Captured screenshot: ${box.width}x${box.height}px`);
       const screenshotData = await element.screenshot({ type: 'png', omitBackground: true });
       return Buffer.isBuffer(screenshotData)
         ? screenshotData
@@ -107,10 +119,12 @@ export async function captureStory(
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
       if (attempt < MAX_RETRIES) {
+        logger?.warn(`Capture failed, retrying in ${RETRY_DELAY}ms...`, lastError.message);
         await delay(RETRY_DELAY);
       }
     }
   }
 
+  logger?.error(`Failed to capture story after ${MAX_RETRIES + 1} attempts:`, lastError?.message);
   throw lastError ?? new Error(`Failed to capture story ${storyId}`);
 }

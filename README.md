@@ -98,6 +98,12 @@ describe('Storybook Visual Regression', () => {
    ```bash
    npm run storybook
    ```
+   
+   **Tip:** To prevent Storybook from opening a browser window, use the `--no-open` flag:
+   ```bash
+   storybook dev -p 6006 --no-open
+   ```
+
 2. In a separate terminal, run your test framework:
    ```bash
    # Vitest
@@ -212,6 +218,9 @@ type StoryDiffConfig = {
   
   // Optional: Fail when baseline is missing
   failOnMissingBaseline?: boolean;
+  
+  // Optional: Logger configuration
+  logger?: LoggerConfig;
 };
 ```
 
@@ -219,10 +228,28 @@ type StoryDiffConfig = {
 
 ```typescript
 type BrowserConfig = {
-  headless?: boolean;           // Default: true
-  args?: readonly string[];     // Puppeteer launch args
-  timeout?: number;             // Launch timeout in ms
-  executablePath?: string;      // Custom Chrome/Chromium path
+  // Run browser in headless mode. Default: true (uses 'shell' mode)
+  // Set to false for headed mode
+  headless?: boolean;
+  // Puppeteer launch args
+  args?: readonly string[];
+  // Launch timeout in ms
+  timeout?: number;
+  // Custom Chrome/Chromium path
+  executablePath?: string;
+};
+```
+
+#### `LoggerConfig`
+
+```typescript
+type LogLevel = 'silent' | 'error' | 'warn' | 'info' | 'debug';
+
+type LoggerConfig = {
+  // Logging level. Default: 'silent'
+  level?: LogLevel;
+  // Custom logger function. If not provided, uses console
+  customLogger?: (level: LogLevel, message: string, ...args: unknown[]) => void;
 };
 ```
 
@@ -373,6 +400,136 @@ type Viewport = {
 ```
 
 ## Advanced Usage
+
+### Logging Configuration
+
+Control output verbosity with the logger configuration:
+
+```typescript
+// Default - silent mode (no output)
+const diff = new StoryDiff({
+  storybookUrl: 'http://localhost:6006',
+  snapshotsDir: './snapshots',
+  // logger is silent by default, no need to configure
+});
+
+// Info mode - recommended for development
+const diff = new StoryDiff({
+  storybookUrl: 'http://localhost:6006',
+  snapshotsDir: './snapshots',
+  logger: {
+    level: 'info',
+  },
+});
+
+// Error only
+const diff = new StoryDiff({
+  storybookUrl: 'http://localhost:6006',
+  snapshotsDir: './snapshots',
+  logger: {
+    level: 'error',
+  },
+});
+
+// Debug mode - verbose output
+const diff = new StoryDiff({
+  storybookUrl: 'http://localhost:6006',
+  snapshotsDir: './snapshots',
+  logger: {
+    level: 'debug',
+  },
+});
+
+// Custom logger (e.g., integrate with your logging framework)
+const diff = new StoryDiff({
+  storybookUrl: 'http://localhost:6006',
+  snapshotsDir: './snapshots',
+  logger: {
+    level: 'info',
+    customLogger: (level, message, ...args) => {
+      // Send to your logging service
+      myLogger.log({ level, message, args });
+    },
+  },
+});
+```
+
+**Log Levels:**
+- `silent`: No output (default)
+- `error`: Only errors
+- `warn`: Errors and warnings
+- `info`: Errors, warnings, and informational messages
+- `debug`: All messages including detailed debugging information
+
+### Headless vs Headed Mode
+
+By default, Story Diff runs the browser in headless mode. For debugging or E2E testing, you can run in headed mode:
+
+```typescript
+// Headed mode - see the browser window
+const diff = new StoryDiff({
+  storybookUrl: 'http://localhost:6006',
+  snapshotsDir: './snapshots',
+  browser: {
+    headless: false,
+  },
+});
+
+// Headless mode (default)
+const diff = new StoryDiff({
+  storybookUrl: 'http://localhost:6006',
+  snapshotsDir: './snapshots',
+  browser: {
+    headless: true, // or omit this line
+  },
+});
+```
+
+**When to use headed mode:**
+- Debugging test failures
+- Developing new tests
+- Demonstrating visual tests
+- Internal E2E testing
+
+**Note:** Headed mode is slower and requires a display. Always use headless mode in CI/CD environments.
+
+**Environment Variable Control:**
+
+You can control headless mode via environment variables:
+
+```bash
+# Run in headed mode for debugging
+HEADLESS=false npm test
+
+# Run in headless mode (default)
+npm test
+```
+
+```typescript
+const diff = new StoryDiff({
+  storybookUrl: 'http://localhost:6006',
+  snapshotsDir: './snapshots',
+  browser: {
+    headless: process.env.HEADLESS !== 'false',
+  },
+  logger: {
+    level: (process.env.LOG_LEVEL as LogLevel) || 'silent',
+  },
+});
+```
+
+This allows you to easily switch between modes without changing code:
+
+```bash
+# Debug with headed browser and verbose logging
+HEADLESS=false LOG_LEVEL=debug npm test
+
+# CI mode with default silent logging
+npm test
+
+# Enable info logging for CI troubleshooting
+LOG_LEVEL=info npm test
+```
 
 ### Batch Testing
 

@@ -22,6 +22,15 @@ describe('Story Diff (Vitest E2E)', () => {
         allowSizeMismatch: false,
       },
       failOnMissingBaseline: false,
+      // Logger configuration - can be set to 'silent', 'error', 'warn', 'info', or 'debug'
+      // Default is 'silent', set to 'info' for E2E test visibility
+      logger: {
+        level: (process.env.LOG_LEVEL as any) || 'silent',
+      },
+      // Browser configuration - headless mode for CI, can be set to false for debugging
+      browser: {
+        headless: process.env.HEADLESS !== 'false',
+      },
     });
 
     await diff.setup();

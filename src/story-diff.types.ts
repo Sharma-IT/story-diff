@@ -9,10 +9,20 @@ export type Viewport = {
 };
 
 export type BrowserConfig = {
+  /** Run browser in headless mode. Default: true (uses 'shell' mode). Set to false for headed mode. */
   readonly headless?: boolean;
   readonly args?: readonly string[];
   readonly timeout?: number;
   readonly executablePath?: string;
+};
+
+export type LogLevel = 'silent' | 'error' | 'warn' | 'info' | 'debug';
+
+export type LoggerConfig = {
+  /** Logging level. Default: 'silent' */
+  readonly level?: LogLevel;
+  /** Custom logger function. If not provided, uses console */
+  readonly customLogger?: (level: LogLevel, message: string, ...args: unknown[]) => void;
 };
 
 export type ComparisonConfig = {
@@ -36,6 +46,8 @@ export type StoryDiffConfig = {
   readonly update?: boolean;
   /** When true, missing baselines cause a failure. When false, they are created silently. Default: true */
   readonly failOnMissingBaseline?: boolean;
+  /** Logger configuration for controlling output verbosity */
+  readonly logger?: LoggerConfig;
 };
 
 export type CaptureOptions = {

@@ -5,6 +5,7 @@ import { captureStory } from './capture.js';
 import { compareImages } from './compare.js';
 import { loadBaseline, saveBaseline, saveDiffOutput } from './snapshot-manager.js';
 import { waitForStorybookReady } from './storybook.js';
+import { Logger } from './logger.js';
 import type {
   AssertOptions,
   BatchResult,
@@ -30,24 +31,35 @@ const DEFAULT_VIEWPORTS: Readonly<Record<string, Viewport>> = {
 
 export class StoryDiff {
   private readonly config: StoryDiffConfig;
+  private readonly logger: Logger;
   private browser: Browser | null = null;
   private page: Page | null = null;
 
   constructor(config: StoryDiffConfig) {
     this.config = config;
+    this.logger = new Logger(config.logger);
   }
 
   async setup(): Promise<void> {
-    this.browser = await launchBrowser(this.config.browser);
+    this.logger.info('Setting up StoryDiff...');
+    this.logger.debug('Browser config:', this.config.browser);
+    
+    this.browser = await launchBrowser(this.config.browser, this.logger);
     this.page = await createPage(this.browser);
-    await waitForStorybookReady(this.page, this.config.storybookUrl);
+    
+    this.logger.info(`Connecting to Storybook at ${this.config.storybookUrl}`);
+    await waitForStorybookReady(this.page, this.config.storybookUrl, this.logger);
+    
+    this.logger.info('StoryDiff setup complete');
   }
 
   async teardown(): Promise<void> {
     if (this.browser) {
+      this.logger.info('Tearing down StoryDiff...');
       await closeBrowser(this.browser);
       this.browser = null;
       this.page = null;
+      this.logger.info('StoryDiff teardown complete');
     }
   }
 
@@ -56,13 +68,15 @@ export class StoryDiff {
     const resolvedViewport = this.resolveViewport(options.viewport);
 
     if (resolvedViewport) {
+      this.logger.debug(`Setting viewport to ${resolvedViewport.name} (${resolvedViewport.width}x${resolvedViewport.height})`);
       await page.setViewport({
         width: resolvedViewport.width,
         height: resolvedViewport.height,
       });
     }
 
-    return captureStory(page, this.config.storybookUrl, storyId, options);
+    this.logger.info(`Capturing story: ${storyId}`);
+    return captureStory(page, this.config.storybookUrl, storyId, options, this.logger);
   }
 
   async compareWithBaseline(
@@ -81,6 +95,7 @@ export class StoryDiff {
       : comparison;
 
     if (update) {
+      this.logger.info(`Updating baseline: ${snapshotName}`);
       const snapshotPath = saveBaseline(snapshotsDir, snapshotName, screenshot);
       return {
         match: true,
@@ -98,6 +113,7 @@ export class StoryDiff {
 
     if (!existing) {
       if (failOnMissingBaseline) {
+        this.logger.warn(`Baseline missing: ${snapshotName}`);
         return {
           match: false,
           diffPixels: 0,
@@ -110,6 +126,7 @@ export class StoryDiff {
         };
       }
 
+      this.logger.info(`Creating new baseline: ${snapshotName}`);
       const snapshotPath = saveBaseline(snapshotsDir, snapshotName, screenshot);
       return {
         match: true,
@@ -123,12 +140,17 @@ export class StoryDiff {
       };
     }
 
-    const compareResult = compareImages(screenshot, existing, mergedComparison);
+    this.logger.debug(`Comparing with baseline: ${snapshotName}`);
+    const compareResult = compareImages(screenshot, existing, mergedComparison, this.logger);
     const snapshotPath = `${snapshotsDir}/${snapshotName}.png`;
 
     let diffPath: string | null = null;
     if (!compareResult.match && compareResult.diffImage) {
+      this.logger.warn(`Visual difference detected: ${snapshotName} (${compareResult.diffPercentage.toFixed(2)}%)`);
       diffPath = saveDiffOutput(snapshotsDir, snapshotName, compareResult.diffImage);
+      this.logger.info(`Diff image saved: ${diffPath}`);
+    } else {
+      this.logger.debug(`Snapshot matches baseline: ${snapshotName}`);
     }
 
     return {
@@ -177,6 +199,8 @@ export class StoryDiff {
 
   async runAll(tests: readonly StoryVisualTest[]): Promise<readonly BatchResult[]> {
     const results: BatchResult[] = [];
+    
+    this.logger.info(`Running batch tests for ${tests.length} component(s)`);
 
     for (const test of tests) {
       const viewports = test.viewports ?? ['desktop'];
@@ -201,6 +225,8 @@ export class StoryDiff {
         }
       }
     }
+    
+    this.logger.info(`Batch tests complete: ${results.length} snapshot(s) processed`);
 
     return results;
   }

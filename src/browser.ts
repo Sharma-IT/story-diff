@@ -2,6 +2,7 @@ import type { Browser, Page } from 'puppeteer';
 import { launch } from 'puppeteer';
 
 import type { BrowserConfig } from './story-diff.types.js';
+import type { Logger } from './logger.js';
 
 const DEFAULT_ARGS = [
   '--no-sandbox',
@@ -13,7 +14,7 @@ const DEFAULT_ARGS = [
   '--disable-gpu',
 ] as const;
 
-export async function launchBrowser(config: BrowserConfig = {}): Promise<Browser> {
+export async function launchBrowser(config: BrowserConfig = {}, logger?: Logger): Promise<Browser> {
   const {
     headless = true,
     args = [],
@@ -21,8 +22,11 @@ export async function launchBrowser(config: BrowserConfig = {}): Promise<Browser
     executablePath,
   } = config;
 
+  logger?.debug(`Launching browser in ${headless ? 'headless' : 'headed'} mode`);
+  logger?.debug('Browser args:', [...DEFAULT_ARGS, ...args]);
+
   return launch({
-    headless,
+    headless: headless === false ? false : 'shell', // Use 'shell' for new headless mode
     args: [...DEFAULT_ARGS, ...args],
     timeout,
     ...(executablePath ? { executablePath } : {}),

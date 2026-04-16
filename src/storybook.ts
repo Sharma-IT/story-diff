@@ -1,4 +1,5 @@
 import type { Page } from 'puppeteer';
+import type { Logger } from './logger.js';
 import { StorybookConnectionError } from './errors.js';
 
 /**
@@ -42,9 +43,12 @@ const STORYBOOK_SELECTORS = [
 export async function waitForStorybookReady(
   page: Page,
   storybookUrl: string,
+  logger?: Logger,
   timeout = 60_000,
 ): Promise<void> {
   const base = storybookUrl.replace(/\/+$/, '');
+
+  logger?.debug(`Checking Storybook readiness at: ${base}`);
 
   const response = await page.goto(base, {
     waitUntil: 'domcontentloaded',
@@ -52,10 +56,12 @@ export async function waitForStorybookReady(
   });
 
   if (!response) {
+    logger?.error('No response from Storybook');
     throw new StorybookConnectionError(base, 'No response');
   }
 
   if (!response.ok()) {
+    logger?.error(`Storybook returned HTTP ${response.status()}`);
     throw new StorybookConnectionError(base, `HTTP ${response.status()}`);
   }
 
@@ -64,8 +70,10 @@ export async function waitForStorybookReady(
 
   for (const selector of STORYBOOK_SELECTORS) {
     try {
+      logger?.debug(`Waiting for Storybook selector: ${selector}`);
       await page.waitForSelector(selector, { timeout: 15_000 });
       found = true;
+      logger?.debug(`Found Storybook UI element: ${selector}`);
       break;
     } catch {
       // Try next selector
@@ -73,9 +81,12 @@ export async function waitForStorybookReady(
   }
 
   if (!found) {
+    logger?.error('Storybook UI did not load - no expected selectors found');
     throw new StorybookConnectionError(
       base,
       'Storybook UI did not load. None of the expected selectors were found.'
     );
   }
+
+  logger?.info('Storybook is ready');
 }

@@ -2,6 +2,7 @@ import pixelmatch from 'pixelmatch';
 import { PNG } from 'pngjs';
 
 import type { ComparisonConfig } from './story-diff.types.js';
+import type { Logger } from './logger.js';
 import { SizeMismatchError } from './errors.js';
 
 type CompareResult = {
@@ -15,6 +16,7 @@ export function compareImages(
   actual: Buffer,
   expected: Buffer,
   config: ComparisonConfig = {},
+  logger?: Logger,
 ): CompareResult {
   const {
     threshold = 0.1,
@@ -26,10 +28,13 @@ export function compareImages(
   const actualPng = PNG.sync.read(actual);
   const expectedPng = PNG.sync.read(expected);
 
+  logger?.debug(`Comparing images: actual=${actualPng.width}x${actualPng.height}, expected=${expectedPng.width}x${expectedPng.height}`);
+
   const hasSizeMismatch =
     actualPng.width !== expectedPng.width || actualPng.height !== expectedPng.height;
 
   if (hasSizeMismatch && !allowSizeMismatch) {
+    logger?.error('Size mismatch detected and not allowed');
     throw new SizeMismatchError(
       actualPng.width,
       actualPng.height,
@@ -39,6 +44,7 @@ export function compareImages(
   }
 
   if (hasSizeMismatch && allowSizeMismatch) {
+    logger?.warn('Size mismatch detected but allowed by configuration');
     const maxWidth = Math.max(actualPng.width, expectedPng.width);
     const maxHeight = Math.max(actualPng.height, expectedPng.height);
     const totalPixels = maxWidth * maxHeight;
@@ -80,6 +86,8 @@ export function compareImages(
 
   const match = diffPixels === 0 || isWithinThreshold;
   const diffImage = diffPixels > 0 ? PNG.sync.write(diffPng) : null;
+
+  logger?.debug(`Comparison result: ${diffPixels} pixels differ (${diffPercentage.toFixed(2)}%), match=${match}`);
 
   return { match, diffPixels, diffPercentage, diffImage };
 }

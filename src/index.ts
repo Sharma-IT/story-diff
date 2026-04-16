@@ -19,4 +19,6 @@ export type {
   ComparisonResult,
   StoryVisualTest,
   BatchResult,
+  LogLevel,
+  LoggerConfig,
 } from './story-diff.types.js';
