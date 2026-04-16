@@ -46,11 +46,13 @@ describe('Story Diff (Vitest E2E)', () => {
   // Case: happy-path
   // Invariant: it captures a valid PNG buffer and saves it if baseline is missing (or assert mode handles it)
   it('captures a story and compares it against baseline', async () => {
+    // Act
     const result = await diff.assertMatchesBaseline('components-button--primary', {
       snapshotName: 'button-primary',
       viewport: 'desktop',
     });
 
+    // Assert
     expect(result.match).toBe(true);
     // On first run baselineCreated will be true, on subsequent runs it will be false
     // But match should always be true.
@@ -61,13 +63,14 @@ describe('Story Diff (Vitest E2E)', () => {
   // Case: happy-path
   // Invariant: Passing globals produces a different snapshot if the component relies on it
   it('applies globals correctly', async () => {
-    // Create baseline for dark theme
+    // Act: Create baseline for dark theme
     const result = await diff.assertMatchesBaseline('components-button--primary', {
       snapshotName: 'button-primary-dark',
       viewport: 'desktop',
       globals: { theme: 'dark' },
     });
 
+    // Assert
     expect(result.match).toBe(true);
   }, 30_000);
 
@@ -75,6 +78,7 @@ describe('Story Diff (Vitest E2E)', () => {
   // Case: happy-path
   // Invariant: Processes multiple definitions and returns array of results
   it('supports declarative batch execution via runAll', async () => {
+    // Act
     const results = await diff.runAll([
       {
         componentName: 'Button',
@@ -84,6 +88,7 @@ describe('Story Diff (Vitest E2E)', () => {
       },
     ]);
 
+    // Assert
     expect(results).toHaveLength(2);
     expect(results[0]?.result.match).toBe(true);
     expect(results[1]?.result.match).toBe(true);
@@ -98,7 +103,13 @@ describe('Story Diff (Vitest E2E)', () => {
   // Invariant: Throws VisualRegressionError when images differ significantly
   // Let's simplify and make it robust.
   it('throws VisualRegressionError when images differ', async () => {
-    // Use Primary story, but compare against Secondary baseline.
+    // Arrange: First ensure we HAVE the baseline for secondary
+    await diff.assertMatchesBaseline('components-button--secondary', {
+      snapshotName: 'button-secondary-desktop-size',
+      viewport: 'desktop',
+    });
+
+    // Act: Use Primary story, but compare against Secondary baseline.
     // To avoid SizeMismatchError, we enable allowSizeMismatch: true.
     const promise = diff.assertMatchesBaseline('components-button--primary', {
       snapshotName: 'button-secondary-desktop-size', // Custom name
@@ -106,23 +117,21 @@ describe('Story Diff (Vitest E2E)', () => {
       comparison: { allowSizeMismatch: true }
     });
 
-    // First ensure we HAVE the baseline for secondary
-    await diff.assertMatchesBaseline('components-button--secondary', {
-      snapshotName: 'button-secondary-desktop-size',
-      viewport: 'desktop',
-    });
-
+    // Assert
     await expect(promise).rejects.toThrow(VisualRegressionError);
   }, 30_000);
 
+  // Requirement: Flexible thresholds
+  // Case: happy-path
+  // Invariant: it passes if diff is within failureThreshold
   it('allows small diff when failureThreshold is set', async () => {
-    // 1. Create baseline for Button primary
+    // Arrange: Create baseline for Button primary
     await diff.assertMatchesBaseline('components-button--primary', {
       snapshotName: 'button-threshold-test',
       viewport: 'desktop',
     });
 
-    // 2. Compare Button secondary against it.
+    // Act: Compare Button secondary against it.
     // They have different sizes, so we must allowSizeMismatch.
     // We set failureThreshold to 100 to make it pass despite 100% diff.
     const result = await diff.assertMatchesBaseline('components-button--secondary', {
@@ -135,6 +144,7 @@ describe('Story Diff (Vitest E2E)', () => {
       }
     });
 
+    // Assert
     expect(result.match).toBe(true);
     expect(result.diffPercentage).toBe(100);
   }, 30_000);
@@ -143,19 +153,20 @@ describe('Story Diff (Vitest E2E)', () => {
   // Case: error
   // Invariant: Throws SizeMismatchError when dimensions differ and not allowed
   it('throws SizeMismatchError when dimensions differ', async () => {
-    // 1. Create a baseline for AsyncComponent (different size than Button)
+    // Arrange: Create a baseline for AsyncComponent (different size than Button)
     await diff.assertMatchesBaseline('components-asynccomponent--default', {
       snapshotName: 'size-mismatch-base',
       viewport: 'desktop',
       waitForSelector: '#ready-element',
     });
 
-    // 2. Compare Button against it
+    // Act: Compare Button against it
     const promise = diff.assertMatchesBaseline('components-button--primary', {
       snapshotName: 'size-mismatch-base',
       viewport: 'desktop',
     });
 
+    // Assert
     await expect(promise).rejects.toThrow(SizeMismatchError);
   }, 30_000);
 
@@ -163,12 +174,13 @@ describe('Story Diff (Vitest E2E)', () => {
   // Case: boundary
   // Invariant: Throws or times out gracefully when story doesn't exist
   it('handles invalid storyId gracefully', async () => {
-    // This usually times out waiting for the selector in captureStory
+    // Act: This usually times out waiting for the selector in captureStory
     const promise = diff.assertMatchesBaseline('non-existent--story', {
       snapshotName: 'invalid-story',
       viewport: 'desktop',
     });
 
+    // Assert
     await expect(promise).rejects.toThrow();
   }, 35_000);
 
@@ -176,12 +188,14 @@ describe('Story Diff (Vitest E2E)', () => {
   // Case: happy-path
   // Invariant: waits for selector before capture
   it('waits for selector before capturing async component', async () => {
+    // Act
     const result = await diff.assertMatchesBaseline('components-asynccomponent--default', {
       snapshotName: 'async-ready',
       viewport: 'desktop',
       waitForSelector: '#ready-element',
     });
 
+    // Assert
     expect(result.match).toBe(true);
   }, 30_000);
 
@@ -189,11 +203,13 @@ describe('Story Diff (Vitest E2E)', () => {
   // Case: error
   // Invariant: throws NotInitializedError if setup() not called
   it('throws NotInitializedError when used before setup', async () => {
+    // Arrange
     const freshDiff = new StoryDiff({
       storybookUrl: 'http://localhost:6006',
       snapshotsDir,
     });
 
+    // Act & Assert
     await expect(freshDiff.captureStory('id')).rejects.toThrow(NotInitializedError);
   });
 
@@ -201,6 +217,7 @@ describe('Story Diff (Vitest E2E)', () => {
   // Case: happy-path
   // Invariant: automatically creates deep directories if missing
   it('automatically creates snapshots directory if it does not exist', async () => {
+    // Arrange
     const nestedDir = path.join(snapshotsDir, 'nested/deep/path');
     const nestedDiff = new StoryDiff({
       storybookUrl: 'http://localhost:6006',
@@ -209,11 +226,13 @@ describe('Story Diff (Vitest E2E)', () => {
     });
     await nestedDiff.setup();
 
+    // Act
     const result = await nestedDiff.assertMatchesBaseline('components-button--primary', {
       snapshotName: 'deep-snapshot',
       viewport: 'desktop',
     });
 
+    // Assert
     expect(result.match).toBe(true);
     await nestedDiff.teardown();
   }, 30_000);
@@ -222,13 +241,13 @@ describe('Story Diff (Vitest E2E)', () => {
   // Case: happy-path
   // Invariant: overwrites existing baselines when update is true
   it('updates baselines when update flag is true', async () => {
-    // 1. Create a baseline with secondary
+    // Arrange: Create a baseline with secondary
     await diff.assertMatchesBaseline('components-button--secondary', {
       snapshotName: 'update-test',
       viewport: 'desktop',
     });
 
-    // 2. Compare primary against it with update: true
+    // Act: Compare primary against it with update: true
     const updateDiff = new StoryDiff({
       storybookUrl: 'http://localhost:6006',
       snapshotsDir,
@@ -241,12 +260,13 @@ describe('Story Diff (Vitest E2E)', () => {
       viewport: 'desktop',
     });
 
+    // Assert
     expect(result.match).toBe(true);
     expect(result.baselineCreated).toBe(true); // Technically it's "updated", but framework returns baselineCreated: true in update mode
 
     await updateDiff.teardown();
 
-    // 3. Verify it's now primary (comparing primary against it without update should pass)
+    // Verify it's now primary (comparing primary against it without update should pass)
     const finalResult = await diff.assertMatchesBaseline('components-button--primary', {
       snapshotName: 'update-test',
       viewport: 'desktop',
@@ -258,6 +278,7 @@ describe('Story Diff (Vitest E2E)', () => {
   // Case: error
   // Invariant: Throws BaselineMissingError when failOnMissingBaseline is true
   it('throws BaselineMissingError when baseline is missing and failOnMissingBaseline is true', async () => {
+    // Arrange
     const strictDiff = new StoryDiff({
       storybookUrl: 'http://localhost:6006',
       snapshotsDir,
@@ -265,11 +286,13 @@ describe('Story Diff (Vitest E2E)', () => {
     });
     await strictDiff.setup();
 
+    // Act
     const promise = strictDiff.assertMatchesBaseline('components-button--primary', {
       snapshotName: 'never-created-baseline',
       viewport: 'desktop',
     });
 
+    // Assert
     await expect(promise).rejects.toThrow(BaselineMissingError);
     await strictDiff.teardown();
   }, 30_000);
