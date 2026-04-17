@@ -11,11 +11,11 @@
 [![npm version](https://img.shields.io/npm/v/story-diff.svg)](https://www.npmjs.com/package/story-diff)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+Test-framework-agnostic visual regression and snapshot testing for Storybook components using Puppeteer or Playwright. Story Diff enables you to capture screenshots of your Storybook stories and compare them against baselines, regardless of whether you use **Vitest**, **Jest**, **Playwright Test**, or any other test runner. It uses either `puppeteer` or `playwright` to load the stories, and a combination of `pixelmatch` & `pngjs` for the image comparison.
+
 </div>
 
 <br>
-
-Test-framework-agnostic visual regression and snapshot testing for Storybook components using Puppeteer or Playwright. Story Diff enables you to capture screenshots of your Storybook stories and compare them against baselines, regardless of whether you use **Vitest**, **Jest**, **Playwright Test**, or any other test runner. It uses either `puppeteer` or `playwright` to load the stories, and a combination of `pixelmatch` & `pngjs` for the image comparison.
 
 ## Installation
 
