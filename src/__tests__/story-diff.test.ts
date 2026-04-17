@@ -20,7 +20,9 @@ vi.mock('../browser.js', () => ({
   createPage: vi.fn().mockResolvedValue({
     setViewport: vi.fn(),
     goto: vi.fn(),
-    getUnderlyingObject: vi.fn().mockReturnValue({}),
+    getUnderlyingObject: vi.fn().mockReturnValue({
+      screenshot: vi.fn().mockResolvedValue(Buffer.from('native-screenshot')),
+    }),
   }),
   closeBrowser: vi.fn(),
 }));
@@ -36,6 +38,11 @@ vi.mock('../storybook.js', () => ({
 
 vi.mock('@playwright/test', () => ({
   expect: mocks.playwrightExpectMock,
+  test: {
+    info: vi.fn().mockImplementation(() => {
+      throw new Error('No test info'); // Default to not in test mode
+    }),
+  },
 }));
 
 describe('StoryDiff - Baseline Handling', () => {
@@ -177,6 +184,39 @@ describe('StoryDiff - Baseline Handling', () => {
 
     expect(result.match).toBe(true);
     expect(result.baselineCreated).toBe(true);
+
+    await playwrightDiff.teardown();
+  });
+
+  it('manually creates native baseline and bypasses expect when test.info() is available', async () => {
+    const playwrightDiff = new StoryDiff({
+      storybookUrl: 'http://localhost:6006',
+      snapshotsDir: tempDir,
+      browser: { provider: 'playwright' },
+      comparison: { useNativeSnapshot: true },
+      failOnMissingBaseline: false,
+    });
+    await playwrightDiff.setup();
+
+    const { test: playwrightTest } = await import('@playwright/test');
+    const snapshotPath = path.join(tempDir, 'manual-baseline.png');
+    
+    vi.mocked(playwrightTest.info).mockReturnValue({
+      snapshotPath: vi.fn().mockReturnValue(snapshotPath),
+    } as any);
+
+    // Ensure file does not exist
+    if (fs.existsSync(snapshotPath)) fs.unlinkSync(snapshotPath);
+
+    const result = await playwrightDiff.assertMatchesBaseline('some-story', {
+      snapshotName: 'manual-baseline',
+      viewport: 'desktop',
+    });
+
+    expect(result.match).toBe(true);
+    expect(result.baselineCreated).toBe(true);
+    // Should NOT have called expect.toHaveScreenshot because we bypassed it
+    expect(mocks.playwrightExpectMock).not.toHaveBeenCalled();
 
     await playwrightDiff.teardown();
   });

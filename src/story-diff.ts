@@ -23,6 +23,7 @@ import {
   VisualRegressionError,
 } from './errors.js';
 import { hookLifecycle } from './hooks.js';
+import fs from 'node:fs';
 import path from 'node:path';
 
 const DEFAULT_VIEWPORTS: Readonly<Record<string, Viewport>> = {
@@ -231,12 +232,20 @@ export class StoryDiff {
     await this.captureStory(storyId, options);
 
     const playwrightPage = pageAdapter.getUnderlyingObject() as any;
-    const { expect } = await import('@playwright/test').catch(() => {
+    const { expect, test } = await import('@playwright/test').catch(() => {
       throw new Error("Native Playwright snapshots require '@playwright/test' to be installed.");
     });
 
-    const snapshotPath = path.join(config.snapshotsDir, `${options.snapshotName}.png`);
-    
+    let testInfo: any;
+    try {
+      testInfo = test.info();
+    } catch {
+      // Not running in Playwright Test runner
+    }
+
+    const snapshotName = `${options.snapshotName}.png`;
+    const snapshotPath = testInfo ? testInfo.snapshotPath(snapshotName) : path.join(config.snapshotsDir, snapshotName);
+
     // Map our comparison config to Playwright's toHaveScreenshot options
     const pwOptions: any = {
       animations: 'disabled',
@@ -254,10 +263,27 @@ export class StoryDiff {
     }
 
     try {
+      // If we're in a Playwright test and the snapshot is missing, and we're NOT failing on missing baseline,
+      // we take the screenshot manually to avoid Playwright's expect failing the test.
+      if (testInfo && snapshotPath && !fs.existsSync(snapshotPath) && config.failOnMissingBaseline === false) {
+        this.logger.info(`Creating missing native baseline: ${snapshotPath}`);
+        await playwrightPage.screenshot({ path: snapshotPath, ...pwOptions });
+        return {
+          match: true,
+          diffPixels: 0,
+          diffPercentage: 0,
+          diffImage: null,
+          baselineCreated: true,
+          baselineMissing: false,
+          snapshotPath,
+          diffPath: null,
+        };
+      }
+
       // Use the page or element for snapshotting
       // Use only the filename, Playwright will use its default snapshot directory
       // which is usually next to the test file.
-      await expect(playwrightPage).toHaveScreenshot(`${options.snapshotName}.png`, pwOptions);
+      await expect(playwrightPage).toHaveScreenshot(snapshotName, pwOptions);
 
       return {
         match: true,
