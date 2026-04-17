@@ -1,6 +1,6 @@
 import path from 'node:path';
 
-import { StoryDiff, VisualRegressionError, SizeMismatchError, BaselineMissingError } from '../../src/index.js';
+import { StoryDiff, VisualRegressionError, SizeMismatchError, BaselineMissingError, NotInitializedError } from '../../src/index.js';
 import type { BatchResult } from '../../src/story-diff.types.js';
 
 describe('Story Diff (Jest E2E)', () => {
@@ -166,6 +166,35 @@ describe('Story Diff (Jest E2E)', () => {
     expect(result.match).toBe(true);
     await updateDiff.teardown();
   }, 60000);
+
+  it('throws NotInitializedError when used before setup', async () => {
+    const freshDiff = new StoryDiff({
+      storybookUrl: 'http://localhost:6006',
+      snapshotsDir,
+      browser: browserConfig,
+    });
+
+    await expect(freshDiff.captureStory('id')).rejects.toThrow(NotInitializedError);
+  });
+
+  it('automatically creates snapshots directory if it does not exist', async () => {
+    const nestedDir = path.join(snapshotsDir, 'nested/deep/path');
+    const nestedDiff = new StoryDiff({
+      storybookUrl: 'http://localhost:6006',
+      snapshotsDir: nestedDir,
+      failOnMissingBaseline: false,
+      browser: browserConfig,
+    });
+    await nestedDiff.setup();
+
+    const result = await nestedDiff.assertMatchesBaseline('components-button--primary', {
+      snapshotName: 'deep-snapshot',
+      viewport: 'desktop',
+    });
+
+    expect(result.match).toBe(true);
+    await nestedDiff.teardown();
+  }, 30000);
 
   it('throws BaselineMissingError when baseline is missing and failOnMissingBaseline is true', async () => {
     const strictDiff = new StoryDiff({

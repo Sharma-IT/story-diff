@@ -4,6 +4,8 @@ import { expect, test } from '@playwright/test';
 
 import {
   BaselineMissingError,
+  NotInitializedError,
+  SizeMismatchError,
   StoryDiff,
   VisualRegressionError,
 } from '../../src/index.js';
@@ -101,6 +103,110 @@ test.describe('Story Diff (Playwright E2E)', () => {
     });
 
     await expect(promise).rejects.toThrow(VisualRegressionError);
+  });
+
+  test('allows small diff when failureThreshold is set', async () => {
+    await diff.assertMatchesBaseline('components-button--primary', {
+      snapshotName: 'button-threshold-test-playwright',
+      viewport: 'desktop',
+    });
+
+    const result = await diff.assertMatchesBaseline('components-button--secondary', {
+      snapshotName: 'button-threshold-test-playwright',
+      viewport: 'desktop',
+      comparison: {
+        allowSizeMismatch: true,
+        failureThreshold: 100,
+        failureThresholdType: 'percent',
+      },
+    });
+
+    expect(result.match).toBe(true);
+    expect(result.diffPercentage).toBe(100);
+  });
+
+  test('throws SizeMismatchError when dimensions differ', async () => {
+    await diff.assertMatchesBaseline('components-asynccomponent--default', {
+      snapshotName: 'size-mismatch-base-playwright',
+      viewport: 'desktop',
+      waitForSelector: '#ready-element',
+    });
+
+    const promise = diff.assertMatchesBaseline('components-button--primary', {
+      snapshotName: 'size-mismatch-base-playwright',
+      viewport: 'desktop',
+    });
+
+    await expect(promise).rejects.toThrow(SizeMismatchError);
+  });
+
+  test('handles invalid storyId gracefully', async () => {
+    const promise = diff.assertMatchesBaseline('non-existent--story', {
+      snapshotName: 'invalid-story',
+      viewport: 'desktop',
+    });
+
+    await expect(promise).rejects.toThrow();
+  });
+
+  test('throws NotInitializedError when used before setup', async () => {
+    const freshDiff = new StoryDiff({
+      storybookUrl: 'http://localhost:6006',
+      snapshotsDir,
+      browser: browserConfig,
+    });
+
+    await expect(freshDiff.captureStory('id')).rejects.toThrow(NotInitializedError);
+  });
+
+  test('automatically creates snapshots directory if it does not exist', async () => {
+    const nestedDir = path.join(snapshotsDir, 'nested/deep/path');
+    const nestedDiff = new StoryDiff({
+      storybookUrl: 'http://localhost:6006',
+      snapshotsDir: nestedDir,
+      failOnMissingBaseline: false,
+      browser: browserConfig,
+    });
+    await nestedDiff.setup();
+
+    const result = await nestedDiff.assertMatchesBaseline('components-button--primary', {
+      snapshotName: 'deep-snapshot',
+      viewport: 'desktop',
+    });
+
+    expect(result.match).toBe(true);
+    await nestedDiff.teardown();
+  });
+
+  test('updates baselines when update flag is true', async () => {
+    await diff.assertMatchesBaseline('components-button--secondary', {
+      snapshotName: 'update-test-playwright',
+      viewport: 'desktop',
+    });
+
+    const updateDiff = new StoryDiff({
+      storybookUrl: 'http://localhost:6006',
+      snapshotsDir,
+      update: true,
+      browser: browserConfig,
+    });
+    await updateDiff.setup();
+
+    const result = await updateDiff.assertMatchesBaseline('components-button--primary', {
+      snapshotName: 'update-test-playwright',
+      viewport: 'desktop',
+    });
+
+    expect(result.match).toBe(true);
+    expect(result.baselineCreated).toBe(true);
+
+    await updateDiff.teardown();
+
+    const finalResult = await diff.assertMatchesBaseline('components-button--primary', {
+      snapshotName: 'update-test-playwright',
+      viewport: 'desktop',
+    });
+    expect(finalResult.match).toBe(true);
   });
 
   test('throws BaselineMissingError when failOnMissingBaseline is true', async () => {
