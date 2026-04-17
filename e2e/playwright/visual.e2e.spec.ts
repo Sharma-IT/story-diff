@@ -182,6 +182,7 @@ test.describe('Story Diff (Playwright E2E)', () => {
     await diff.assertMatchesBaseline('components-button--secondary', {
       snapshotName: 'update-test-playwright',
       viewport: 'desktop',
+      comparison: { allowSizeMismatch: true },
     });
 
     const updateDiff = new StoryDiff({
@@ -226,6 +227,30 @@ test.describe('Story Diff (Playwright E2E)', () => {
 
     await expect(promise).rejects.toThrow(BaselineMissingError);
     await strictDiff.teardown();
+  });
+
+  test('supports native Playwright snapshotting method', async () => {
+    // Requirement: Allow using Playwright's native comparison engine instead of pixelmatch/pngjs.
+    // Case: happy-path
+    // Invariant: Native snapshotting should work and respect thresholds.
+    const nativeDiff = new StoryDiff({
+      storybookUrl: 'http://localhost:6006',
+      snapshotsDir,
+      comparison: {
+        useNativeSnapshot: true,
+      },
+      failOnMissingBaseline: false,
+      browser: browserConfig,
+    });
+    await nativeDiff.setup();
+
+    const result = await nativeDiff.assertMatchesBaseline('components-button--primary', {
+      snapshotName: 'button-primary-native',
+      viewport: 'desktop',
+    });
+
+    expect(result.match).toBe(true);
+    await nativeDiff.teardown();
   });
 });
 

@@ -61,6 +61,7 @@ export interface ElementHandleAdapter {
   boundingBox(): Promise<BoundingBox | null>;
   evaluate<R>(pageFunction: (element: unknown) => R | Promise<R>): Promise<R>;
   screenshot(options: ScreenshotOptions): Promise<Buffer>;
+  getUnderlyingObject(): unknown;
 }
 
 export interface PageAdapter {
@@ -72,6 +73,7 @@ export interface PageAdapter {
   waitForSelector(selector: string, options: WaitForOptions): Promise<void>;
   query(selector: string): Promise<ElementHandleAdapter | null>;
   screenshot(options: ScreenshotOptions): Promise<Buffer>;
+  getUnderlyingObject(): unknown;
 }
 
 export interface BrowserAdapter {
@@ -193,6 +195,10 @@ class PuppeteerElementAdapter implements ElementHandleAdapter {
     const screenshot = await this.element.screenshot(options);
     return normalizeScreenshot(screenshot);
   }
+
+  getUnderlyingObject(): unknown {
+    return this.element;
+  }
 }
 
 class PuppeteerPageAdapter implements PageAdapter {
@@ -231,6 +237,10 @@ class PuppeteerPageAdapter implements PageAdapter {
     const screenshot = await this.page.screenshot(options);
     return normalizeScreenshot(screenshot);
   }
+
+  getUnderlyingObject(): unknown {
+    return this.page;
+  }
 }
 
 class PuppeteerBrowserAdapter implements BrowserAdapter {
@@ -259,6 +269,10 @@ class PlaywrightElementAdapter implements ElementHandleAdapter {
   async screenshot(options: ScreenshotOptions): Promise<Buffer> {
     const screenshot = await this.locator.screenshot(options);
     return normalizeScreenshot(screenshot);
+  }
+
+  getUnderlyingObject(): unknown {
+    return this.locator;
   }
 }
 
@@ -301,6 +315,10 @@ class PlaywrightPageAdapter implements PageAdapter {
   async screenshot(options: ScreenshotOptions): Promise<Buffer> {
     const screenshot = await this.page.screenshot(options);
     return normalizeScreenshot(screenshot);
+  }
+
+  getUnderlyingObject(): unknown {
+    return this.page;
   }
 }
 

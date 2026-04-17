@@ -44,6 +44,12 @@ export type ComparisonConfig = {
   readonly failureThresholdType?: 'percent' | 'pixel';
   /** Allow size mismatches between actual and baseline. Default: false */
   readonly allowSizeMismatch?: boolean;
+  /** 
+   * Use Playwright's native comparison if available. 
+   * Only applicable when browser provider is 'playwright'.
+   * Default: false 
+   */
+  readonly useNativeSnapshot?: boolean;
 };
 
 export type StoryDiffConfig = {

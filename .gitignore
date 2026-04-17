@@ -11,6 +11,8 @@ test-results/.last-run.json
 e2e/fixture/node_modules/
 e2e/fixture/storybook-static/
 e2e/snapshots/
+/e2e/playwright/visual.e2e.spec.ts-snapshots
+/test-results
 
 # OS
 .DS_Store

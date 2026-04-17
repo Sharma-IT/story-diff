@@ -22,6 +22,7 @@ import {
   ViewportNotFoundError,
   VisualRegressionError,
 } from './errors.js';
+import path from 'node:path';
 
 const DEFAULT_VIEWPORTS: Readonly<Record<string, Viewport>> = {
   mobile: { name: 'mobile', width: 393, height: 852 },
@@ -179,6 +180,14 @@ export class StoryDiff {
     storyId: string,
     options: AssertOptions,
   ): Promise<ComparisonResult> {
+    const config = await this.getConfig();
+    const mergedComparison = { ...config.comparison, ...options.comparison };
+
+    if (mergedComparison.useNativeSnapshot && config.browser?.provider === 'playwright') {
+      this.logger.info(`Using native Playwright snapshot for: ${options.snapshotName}`);
+      return this.assertNativePlaywrightSnapshot(storyId, options, mergedComparison);
+    }
+
     const screenshot = await this.captureStory(storyId, options);
     const result = await this.compareWithBaseline(
       screenshot,
@@ -201,6 +210,87 @@ export class StoryDiff {
     }
 
     return result;
+  }
+
+  private async assertNativePlaywrightSnapshot(
+    storyId: string,
+    options: AssertOptions,
+    comparison: ComparisonConfig,
+  ): Promise<ComparisonResult> {
+    const config = await this.getConfig();
+    const pageAdapter = await this.getPage();
+    
+    // Ensure navigation and readiness
+    // We call captureStory but we'll re-capture using native method
+    // This ensures all the "Storybook logic" (globals, wait for selector, etc) is executed
+    await this.captureStory(storyId, options);
+
+    const playwrightPage = pageAdapter.getUnderlyingObject() as any;
+    const { expect } = await import('@playwright/test').catch(() => {
+      throw new Error("Native Playwright snapshots require '@playwright/test' to be installed.");
+    });
+
+    const snapshotPath = path.join(config.snapshotsDir, `${options.snapshotName}.png`);
+    
+    // Map our comparison config to Playwright's toHaveScreenshot options
+    const pwOptions: any = {
+      animations: 'disabled',
+      caret: 'hide',
+      scale: 'css',
+      threshold: comparison.threshold ?? 0.1,
+    };
+
+    if (comparison.failureThreshold !== undefined) {
+      if (comparison.failureThresholdType === 'pixel') {
+        pwOptions.maxDiffPixels = comparison.failureThreshold;
+      } else {
+        pwOptions.maxDiffPixelRatio = comparison.failureThreshold / 100;
+      }
+    }
+
+    try {
+      // Use the page or element for snapshotting
+      // Use only the filename, Playwright will use its default snapshot directory
+      // which is usually next to the test file.
+      await expect(playwrightPage).toHaveScreenshot(`${options.snapshotName}.png`, pwOptions);
+
+      return {
+        match: true,
+        diffPixels: 0,
+        diffPercentage: 0,
+        diffImage: null,
+        baselineCreated: false,
+        baselineMissing: false,
+        snapshotPath,
+        diffPath: null,
+      };
+    } catch (error: any) {
+      const errorMessage = error.message || String(error);
+      // If it's a first run, Playwright might have created the baseline
+      if (errorMessage.includes('snapshot doesn\'t exist') || errorMessage.includes('writing actual')) {
+        return {
+          match: true,
+          diffPixels: 0,
+          diffPercentage: 0,
+          diffImage: null,
+          baselineCreated: true,
+          baselineMissing: false,
+          snapshotPath,
+          diffPath: null,
+        };
+      }
+
+      // Extract details from Playwright error if possible, or just re-throw as VisualRegressionError
+      this.logger.error(`Native Playwright snapshot failed: ${error.message}`);
+      
+      throw new VisualRegressionError(
+        options.snapshotName,
+        100, // We don't have exact metrics easily from the error object
+        0,
+        snapshotPath,
+        null // Playwright saves diffs elsewhere by default
+      );
+    }
   }
 
   async runAll(tests?: readonly StoryVisualTest[]): Promise<readonly BatchResult[]> {
