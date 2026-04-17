@@ -46,25 +46,16 @@ describe('StoryDiff - Baseline Handling', () => {
     vi.clearAllMocks();
   });
 
-  // Requirement: Prevent silent baseline creation
-  // Case: error
-  // Invariant: Should throw BaselineMissingError when baseline is missing and update is false
   it('throws BaselineMissingError when baseline is missing and update is false (default)', async () => {
-    // Arrange
     const snapshotName = 'non-existent-baseline';
 
-    // Act & Assert
     await expect(diff.assertMatchesBaseline('some-story', { 
       snapshotName,
       viewport: 'desktop' 
     })).rejects.toThrow(BaselineMissingError);
   });
 
-  // Requirement: Allow baseline creation in update mode
-  // Case: happy-path
-  // Invariant: Should create baseline and match when update is true
   it('creates baseline and matches when update is true', async () => {
-    // Arrange
     const snapshotName = 'new-baseline-update';
     const updateDiff = new StoryDiff({
       storybookUrl: 'http://localhost:6006',
@@ -73,13 +64,11 @@ describe('StoryDiff - Baseline Handling', () => {
     });
     await updateDiff.setup();
 
-    // Act
     const result = await updateDiff.assertMatchesBaseline('some-story', {
       snapshotName,
       viewport: 'desktop',
     });
 
-    // Assert
     expect(result.match).toBe(true);
     expect(result.baselineCreated).toBe(true);
     expect(fs.existsSync(path.join(tempDir, `${snapshotName}.png`))).toBe(true);
@@ -87,11 +76,7 @@ describe('StoryDiff - Baseline Handling', () => {
     await updateDiff.teardown();
   });
 
-  // Requirement: Opt-out of failure
-  // Case: happy-path
-  // Invariant: Should maintain legacy behavior when failOnMissingBaseline is false
   it('maintains legacy behavior (creates baseline) when failOnMissingBaseline is false', async () => {
-    // Arrange
     const snapshotName = 'legacy-creation';
     const legacyDiff = new StoryDiff({
       storybookUrl: 'http://localhost:6006',
@@ -100,13 +85,11 @@ describe('StoryDiff - Baseline Handling', () => {
     });
     await legacyDiff.setup();
 
-    // Act
     const result = await legacyDiff.assertMatchesBaseline('some-story', {
       snapshotName,
       viewport: 'desktop',
     });
 
-    // Assert
     expect(result.match).toBe(true);
     expect(result.baselineCreated).toBe(true);
     expect(fs.existsSync(path.join(tempDir, `${snapshotName}.png`))).toBe(true);
@@ -114,11 +97,7 @@ describe('StoryDiff - Baseline Handling', () => {
     await legacyDiff.teardown();
   });
 
-  // Requirement: Directory creation
-  // Case: happy-path
-  // Invariant: Should create nested directories even if missing and failOnMissingBaseline is false
   it('creates nested directories when failOnMissingBaseline is false', async () => {
-    // Arrange
     const nestedDir = path.join(tempDir, 'a/b/c');
     const snapshotName = 'nested-test';
     const nestedDiff = new StoryDiff({
@@ -128,13 +107,11 @@ describe('StoryDiff - Baseline Handling', () => {
     });
     await nestedDiff.setup();
 
-    // Act
     await nestedDiff.assertMatchesBaseline('some-story', {
       snapshotName,
       viewport: 'desktop',
     });
 
-    // Assert
     expect(fs.existsSync(path.join(nestedDir, `${snapshotName}.png`))).toBe(true);
     await nestedDiff.teardown();
   });
