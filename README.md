@@ -207,6 +207,50 @@ await diff.assertMatchesBaseline('button--primary', {
 });
 ```
 
+### Automatic Lifecycle Management
+
+Story Diff can automatically handle the `beforeAll` and `afterAll` hooks to manage the browser lifecycle.
+
+#### Using the Constructor
+Pass `autoLifecycle: true` to the constructor. This will attempt to detect `beforeAll` and `afterAll` in the global scope (supported by Vitest and Jest).
+
+```typescript
+const diff = new StoryDiff({
+  storybookUrl: 'http://localhost:6006',
+  snapshotsDir: './snapshots',
+  autoLifecycle: true
+});
+```
+
+#### Using the `hookLifecycle` Helper
+If you prefer explicit registration or need to support environments without global hooks (like Playwright Test), use the `hookLifecycle` helper:
+
+```typescript
+import { test } from '@playwright/test';
+import { StoryDiff, hookLifecycle } from 'story-diff';
+
+const diff = new StoryDiff();
+
+// Explicitly pass hooks for Playwright Test
+hookLifecycle(diff, {
+  enabled: true,
+  beforeAll: test.beforeAll,
+  afterAll: test.afterAll,
+  timeout: 60000
+});
+```
+
+#### Configuration Options
+
+```typescript
+type LifecycleConfig = {
+  enabled?: boolean;     // Enable automatic management
+  beforeAll?: HookFn;    // Custom beforeAll implementation
+  afterAll?: HookFn;     // Custom afterAll implementation
+  timeout?: number;      // Timeout for hooks (default: 60000ms)
+};
+```
+
 ## API Reference
 
 ### StoryDiff Class
@@ -1005,8 +1049,6 @@ Story Diff works with any test framework that supports async/await:
 - Ava
 - Tape
 - Node's built-in test runner
-
-Just ensure proper setup/teardown lifecycle management.
 
 ## Troubleshooting
 

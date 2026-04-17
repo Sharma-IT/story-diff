@@ -1,4 +1,5 @@
 export { StoryDiff } from './story-diff.js';
+export { hookLifecycle } from './hooks.js';
 export * from './errors.js';
 export { compareImages } from './compare.js';
 export { buildStoryUrl } from './storybook.js';

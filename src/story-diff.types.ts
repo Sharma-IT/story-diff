@@ -2,6 +2,19 @@
  * Public type definitions for Story Diff
  */
 
+export type LifecycleHook = (fn: () => Promise<void>, timeout?: number) => void;
+
+export type LifecycleConfig = {
+  /** Enables automatic lifecycle management (beforeAll/afterAll). */
+  readonly enabled?: boolean;
+  /** Custom beforeAll hook. If not provided, attempts to find one globally. */
+  readonly beforeAll?: LifecycleHook;
+  /** Custom afterAll hook. If not provided, attempts to find one globally. */
+  readonly afterAll?: LifecycleHook;
+  /** Timeout for the lifecycle hooks in milliseconds. Default: 60000. */
+  readonly timeout?: number;
+};
+
 export type Viewport = {
   readonly name: string;
   readonly width: number;
@@ -68,6 +81,11 @@ export type StoryDiffConfig = {
   readonly defaults?: CaptureOptions;
   /** Optional batch definitions used when runAll() is called without arguments */
   readonly tests?: readonly StoryVisualTest[];
+  /** 
+   * Automatic lifecycle management configuration.
+   * When true, attempts to automatically register beforeAll/afterAll hooks.
+   */
+  readonly autoLifecycle?: boolean | LifecycleConfig;
 };
 
 export type CaptureOptions = {

@@ -22,6 +22,7 @@ import {
   ViewportNotFoundError,
   VisualRegressionError,
 } from './errors.js';
+import { hookLifecycle } from './hooks.js';
 import path from 'node:path';
 
 const DEFAULT_VIEWPORTS: Readonly<Record<string, Viewport>> = {
@@ -39,6 +40,10 @@ export class StoryDiff {
   constructor(config?: StoryDiffConfig) {
     this.config = config ?? null;
     this.logger = new Logger(config?.logger);
+
+    if (config?.autoLifecycle) {
+      hookLifecycle(this, config.autoLifecycle);
+    }
   }
 
   async setup(): Promise<void> {
