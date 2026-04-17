@@ -5,6 +5,7 @@ dist/
 # Test artifacts
 __diff_output__/
 *-current.png
+test-results/.last-run.json
 
 # E2E fixture
 e2e/fixture/node_modules/

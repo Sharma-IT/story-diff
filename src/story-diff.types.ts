@@ -58,6 +58,10 @@ export type StoryDiffConfig = {
   readonly failOnMissingBaseline?: boolean;
   /** Logger configuration for controlling output verbosity */
   readonly logger?: LoggerConfig;
+  /** Default capture options applied to every assertion or capture unless explicitly overridden */
+  readonly defaults?: CaptureOptions;
+  /** Optional batch definitions used when runAll() is called without arguments */
+  readonly tests?: readonly StoryVisualTest[];
 };
 
 export type CaptureOptions = {

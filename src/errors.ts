@@ -78,3 +78,23 @@ export class StorybookConnectionError extends StoryDiffError {
     super(message);
   }
 }
+
+/**
+ * Thrown when StoryDiff cannot find a root configuration file.
+ */
+export class ConfigNotFoundError extends StoryDiffError {
+  constructor(fileNames: readonly string[]) {
+    super(
+      `StoryDiff configuration not found. Pass config to the constructor or add one of: ${fileNames.join(', ')}.`
+    );
+  }
+}
+
+/**
+ * Thrown when a discovered configuration file cannot be parsed or normalised.
+ */
+export class InvalidConfigError extends StoryDiffError {
+  constructor(filePath: string, detail: string) {
+    super(`Invalid StoryDiff configuration in ${filePath}: ${detail}`);
+  }
+}

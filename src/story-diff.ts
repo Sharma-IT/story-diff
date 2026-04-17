@@ -2,6 +2,7 @@ import type { BrowserAdapter, PageAdapter } from './browser.js';
 import { closeBrowser, createPage, launchBrowser } from './browser.js';
 import { captureStory } from './capture.js';
 import { compareImages } from './compare.js';
+import { resolveStoryDiffConfig } from './config-loader.js';
 import { loadBaseline, saveBaseline, saveDiffOutput } from './snapshot-manager.js';
 import { waitForStorybookReady } from './storybook.js';
 import { Logger } from './logger.js';
@@ -29,25 +30,27 @@ const DEFAULT_VIEWPORTS: Readonly<Record<string, Viewport>> = {
 };
 
 export class StoryDiff {
-  private readonly config: StoryDiffConfig;
-  private readonly logger: Logger;
+  private config: StoryDiffConfig | null;
+  private logger: Logger;
   private browser: BrowserAdapter | null = null;
   private page: PageAdapter | null = null;
 
-  constructor(config: StoryDiffConfig) {
-    this.config = config;
-    this.logger = new Logger(config.logger);
+  constructor(config?: StoryDiffConfig) {
+    this.config = config ?? null;
+    this.logger = new Logger(config?.logger);
   }
 
   async setup(): Promise<void> {
+    const config = await this.getConfig();
+
     this.logger.info('Setting up StoryDiff...');
-    this.logger.debug('Browser config:', this.config.browser);
+    this.logger.debug('Browser config:', config.browser);
     
-    this.browser = await launchBrowser(this.config.browser, this.logger);
+    this.browser = await launchBrowser(config.browser, this.logger);
     this.page = await createPage(this.browser);
     
-    this.logger.info(`Connecting to Storybook at ${this.config.storybookUrl}`);
-    await waitForStorybookReady(this.page, this.config.storybookUrl, this.logger);
+    this.logger.info(`Connecting to Storybook at ${config.storybookUrl}`);
+    await waitForStorybookReady(this.page, config.storybookUrl, this.logger);
     
     this.logger.info('StoryDiff setup complete');
   }
@@ -63,8 +66,10 @@ export class StoryDiff {
   }
 
   async captureStory(storyId: string, options: CaptureOptions = {}): Promise<Buffer> {
+    const config = await this.getConfig();
     const page = await this.getPage();
-    const resolvedViewport = this.resolveViewport(options.viewport);
+    const captureOptions = this.mergeCaptureOptions(config, options);
+    const resolvedViewport = this.resolveViewport(captureOptions.viewport, config.viewports);
 
     if (resolvedViewport) {
       this.logger.debug(`Setting viewport to ${resolvedViewport.name} (${resolvedViewport.width}x${resolvedViewport.height})`);
@@ -75,7 +80,7 @@ export class StoryDiff {
     }
 
     this.logger.info(`Capturing story: ${storyId}`);
-    return captureStory(page, this.config.storybookUrl, storyId, options, this.logger);
+    return captureStory(page, config.storybookUrl, storyId, captureOptions, this.logger);
   }
 
   async compareWithBaseline(
@@ -83,12 +88,13 @@ export class StoryDiff {
     snapshotName: string,
     comparisonOverride?: ComparisonConfig,
   ): Promise<ComparisonResult> {
+    const config = await this.getConfig();
     const { 
       snapshotsDir, 
       comparison = {}, 
       update = false,
       failOnMissingBaseline = true 
-    } = this.config;
+    } = config;
     const mergedComparison = comparisonOverride 
       ? { ...comparison, ...comparisonOverride }
       : comparison;
@@ -165,7 +171,8 @@ export class StoryDiff {
   }
 
   async updateBaseline(screenshot: Buffer, snapshotName: string): Promise<string> {
-    return saveBaseline(this.config.snapshotsDir, snapshotName, screenshot);
+    const config = await this.getConfig();
+    return saveBaseline(config.snapshotsDir, snapshotName, screenshot);
   }
 
   async assertMatchesBaseline(
@@ -196,12 +203,14 @@ export class StoryDiff {
     return result;
   }
 
-  async runAll(tests: readonly StoryVisualTest[]): Promise<readonly BatchResult[]> {
+  async runAll(tests?: readonly StoryVisualTest[]): Promise<readonly BatchResult[]> {
+    const config = await this.getConfig();
     const results: BatchResult[] = [];
+    const testsToRun = tests ?? config.tests ?? [];
     
-    this.logger.info(`Running batch tests for ${tests.length} component(s)`);
+    this.logger.info(`Running batch tests for ${testsToRun.length} component(s)`);
 
-    for (const test of tests) {
+    for (const test of testsToRun) {
       const viewports = test.viewports ?? ['desktop'];
 
       for (const story of test.stories) {
@@ -230,12 +239,15 @@ export class StoryDiff {
     return results;
   }
 
-  private resolveViewport(viewport?: string | Viewport): Viewport | null {
+  private resolveViewport(
+    viewport: string | Viewport | undefined,
+    configuredViewports?: Readonly<Record<string, Viewport>>,
+  ): Viewport | null {
     if (!viewport) return null;
 
     if (typeof viewport === 'object') return viewport;
 
-    const viewports = this.config.viewports ?? DEFAULT_VIEWPORTS;
+    const viewports = configuredViewports ?? DEFAULT_VIEWPORTS;
     const resolved = viewports[viewport];
 
     if (!resolved) {
@@ -250,6 +262,32 @@ export class StoryDiff {
       throw new NotInitializedError();
     }
     return this.page;
+  }
+
+  private async getConfig(): Promise<StoryDiffConfig> {
+    if (this.config) {
+      return this.config;
+    }
+
+    this.config = await resolveStoryDiffConfig();
+    this.logger = new Logger(this.config.logger);
+    return this.config;
+  }
+
+  private mergeCaptureOptions(
+    config: StoryDiffConfig,
+    options: CaptureOptions,
+  ): CaptureOptions {
+    const defaults = config.defaults ?? {};
+    const defaultGlobals = defaults.globals ?? {};
+    const optionGlobals = options.globals ?? {};
+    const mergedGlobals = { ...defaultGlobals, ...optionGlobals };
+
+    return {
+      ...defaults,
+      ...options,
+      globals: Object.keys(mergedGlobals).length > 0 ? mergedGlobals : undefined,
+    };
   }
 }
 

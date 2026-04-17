@@ -216,8 +216,19 @@ The main class for visual regression testing.
 #### Constructor
 
 ```typescript
-const diff = new StoryDiff(config: StoryDiffConfig);
+const diff = new StoryDiff(config?: StoryDiffConfig);
 ```
+
+If you omit `config`, Story Diff searches upward from `process.cwd()` for one of these files and loads it automatically:
+
+- `story-diff.config.mjs`
+- `story-diff.config.js`
+- `story-diff.config.cjs`
+- `story-diff.config.json`
+- `story-diff.mjs`
+- `story-diff.js`
+- `story-diff.cjs`
+- `story-diff.json`
 
 #### Lifecycle Methods
 
@@ -270,8 +281,16 @@ type StoryDiffConfig = {
   
   // Optional: Logger configuration
   logger?: LoggerConfig;
+
+  // Optional: Default capture options applied to every call
+  defaults?: CaptureOptions;
+
+  // Optional: Batch definitions used when runAll() is called without arguments
+  tests?: readonly StoryVisualTest[];
 };
 ```
+
+When loaded from a config file, `snapshotsDir` is resolved relative to that file.
 
 #### `BrowserConfig`
 
@@ -407,7 +426,7 @@ Batch processes multiple stories declaratively.
 
 ```typescript
 const results: BatchResult[] = await diff.runAll(
-  tests: StoryVisualTest[]
+  tests?: StoryVisualTest[]
 );
 ```
 
@@ -643,6 +662,63 @@ Or pass inline viewports:
 await diff.assertMatchesBaseline('button--primary', {
   snapshotName: 'button-custom',
   viewport: { name: 'custom', width: 1024, height: 768 },
+});
+```
+
+### Root Config File
+
+If you want one global config object for the whole project, create a root config file and instantiate `StoryDiff` without passing config in your test hooks:
+
+```javascript
+// story-diff.config.mjs
+export default {
+  storybookUrl: 'http://localhost:6006',
+  snapshotsDir: './visual-snapshots',
+  failOnMissingBaseline: false,
+  defaults: {
+    viewport: 'desktop',
+    globals: {
+      theme: 'dark',
+      locale: 'en-AU',
+    },
+    waitForSelector: '#storybook-root',
+    waitForTimeout: 300,
+  },
+  tests: [
+    {
+      componentName: 'Button',
+      storyPath: 'components-button',
+      stories: ['primary', 'secondary'],
+      viewports: ['mobile', 'desktop'],
+    },
+  ],
+};
+```
+
+```typescript
+import { StoryDiff } from 'story-diff';
+
+const diff = new StoryDiff();
+
+beforeAll(async () => {
+  await diff.setup();
+});
+
+afterAll(async () => {
+  await diff.teardown();
+});
+
+it('uses discovered defaults automatically', async () => {
+  const result = await diff.assertMatchesBaseline('components-button--primary', {
+    snapshotName: 'button-primary-dark',
+  });
+
+  expect(result.match).toBe(true);
+});
+
+it('can use configured batch tests without redefining them', async () => {
+  const results = await diff.runAll();
+  expect(results).toHaveLength(4);
 });
 ```
 
