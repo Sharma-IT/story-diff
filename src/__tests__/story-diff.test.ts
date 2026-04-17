@@ -8,6 +8,7 @@ import { BaselineMissingError } from '../errors.js';
 const mocks = vi.hoisted(() => ({
   captureStoryMock: vi.fn().mockResolvedValue(Buffer.from('dummy-image')),
   waitForStorybookReadyMock: vi.fn(),
+  playwrightExpectMock: vi.fn(),
 }));
 
 // Mock browser and capture to avoid puppeteer overhead in unit tests
@@ -19,6 +20,7 @@ vi.mock('../browser.js', () => ({
   createPage: vi.fn().mockResolvedValue({
     setViewport: vi.fn(),
     goto: vi.fn(),
+    getUnderlyingObject: vi.fn().mockReturnValue({}),
   }),
   closeBrowser: vi.fn(),
 }));
@@ -30,6 +32,10 @@ vi.mock('../capture.js', () => ({
 vi.mock('../storybook.js', () => ({
   waitForStorybookReady: mocks.waitForStorybookReadyMock,
   buildStoryUrl: vi.fn().mockReturnValue('http://localhost:6006/iframe.html?id=some-story'),
+}));
+
+vi.mock('@playwright/test', () => ({
+  expect: mocks.playwrightExpectMock,
 }));
 
 describe('StoryDiff - Baseline Handling', () => {
@@ -119,6 +125,60 @@ describe('StoryDiff - Baseline Handling', () => {
 
     expect(fs.existsSync(path.join(nestedDir, `${snapshotName}.png`))).toBe(true);
     await nestedDiff.teardown();
+  });
+
+  it('uses native Playwright snapshotting when configured', async () => {
+    const playwrightDiff = new StoryDiff({
+      storybookUrl: 'http://localhost:6006',
+      snapshotsDir: tempDir,
+      browser: { provider: 'playwright' },
+      comparison: { useNativeSnapshot: true },
+    });
+    await playwrightDiff.setup();
+
+    const toHaveScreenshotMock = vi.fn().mockResolvedValue(undefined);
+    mocks.playwrightExpectMock.mockReturnValue({
+      toHaveScreenshot: toHaveScreenshotMock,
+    });
+
+    const result = await playwrightDiff.assertMatchesBaseline('some-story', {
+      snapshotName: 'native-test',
+      viewport: 'desktop',
+    });
+
+    expect(result.match).toBe(true);
+    expect(toHaveScreenshotMock).toHaveBeenCalledWith(
+      expect.stringContaining('native-test.png'),
+      expect.objectContaining({ threshold: 0.1 })
+    );
+
+    await playwrightDiff.teardown();
+  });
+
+  it('handles "snapshot created" error from Playwright as a success', async () => {
+    const playwrightDiff = new StoryDiff({
+      storybookUrl: 'http://localhost:6006',
+      snapshotsDir: tempDir,
+      browser: { provider: 'playwright' },
+      comparison: { useNativeSnapshot: true },
+    });
+    await playwrightDiff.setup();
+
+    // Mock Playwright throwing the "missing snapshot" error which actually creates the snapshot
+    const error = new Error('A snapshot doesn\'t exist at some-path, writing actual.');
+    mocks.playwrightExpectMock.mockReturnValue({
+      toHaveScreenshot: vi.fn().mockRejectedValue(error),
+    });
+
+    const result = await playwrightDiff.assertMatchesBaseline('some-story', {
+      snapshotName: 'native-new-baseline',
+      viewport: 'desktop',
+    });
+
+    expect(result.match).toBe(true);
+    expect(result.baselineCreated).toBe(true);
+
+    await playwrightDiff.teardown();
   });
 });
 

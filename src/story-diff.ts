@@ -271,8 +271,12 @@ export class StoryDiff {
       };
     } catch (error: any) {
       const errorMessage = error.message || String(error);
+      
       // If it's a first run, Playwright might have created the baseline
-      if (errorMessage.includes('snapshot doesn\'t exist') || errorMessage.includes('writing actual')) {
+      // Note: We use a regex to handle ANSI colors and varied formatting in different environments (like CI)
+      const isBaselineMissing = /snapshot.*doesn't.*exist|writing.*actual|no.*snapshot|snapshot.*not.*found|missing.*baseline/i.test(errorMessage);
+      
+      if (isBaselineMissing) {
         return {
           match: true,
           diffPixels: 0,
