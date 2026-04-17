@@ -15,7 +15,7 @@
 
 <br>
 
-Test-framework-agnostic visual regression and snapshot testing for Storybook components using Puppeteer. Story Diff enables you to capture screenshots of your Storybook stories and compare them against baselines, regardless of whether you use **Vitest**, **Jest**, or any other test runner. It leverages `puppeteer` to load the stories, and a combination of `pixelmatch` & `pngjs` for the image comparison.
+Test-framework-agnostic visual regression and snapshot testing for Storybook components using Puppeteer or Playwright. Story Diff enables you to capture screenshots of your Storybook stories and compare them against baselines, regardless of whether you use **Vitest**, **Jest**, **Playwright Test**, or any other test runner. It uses either `puppeteer` or `playwright` to load the stories, and a combination of `pixelmatch` & `pngjs` for the image comparison.
 
 ## Installation
 
@@ -23,10 +23,16 @@ Test-framework-agnostic visual regression and snapshot testing for Storybook com
 npm install --save-dev story-diff puppeteer
 ```
 
+```bash
+npm install --save-dev story-diff playwright @playwright/test
+npx playwright install chromium
+```
+
 > **Requirements:**
 > - Node.js 20 or higher
 > - Storybook 10.0.0 or higher
-> - Puppeteer 24.0.0 or higher
+> - Puppeteer 24.41.0 or higher
+> - Playwright 1.59.1 or higher when using the Playwright provider
 
 ## Quick Start
 
@@ -44,6 +50,9 @@ describe('Storybook Visual Regression', () => {
     diff = new StoryDiff({
       storybookUrl: 'http://localhost:6006',
       snapshotsDir: './visual-snapshots',
+      browser: {
+        provider: 'puppeteer',
+      },
     });
 
     // 2. Launch browser and ensure Storybook is ready
@@ -92,6 +101,43 @@ describe('Storybook Visual Regression', () => {
 });
 ```
 
+### Playwright Test Example
+
+```typescript
+import { expect, test } from '@playwright/test';
+import { StoryDiff } from 'story-diff';
+
+test.describe('Storybook Visual Regression', () => {
+  let diff: StoryDiff;
+
+  test.beforeAll(async () => {
+    diff = new StoryDiff({
+      storybookUrl: 'http://localhost:6006',
+      snapshotsDir: './visual-snapshots',
+      browser: {
+        provider: 'playwright',
+        browserName: 'chromium',
+      },
+    });
+
+    await diff.setup();
+  });
+
+  test.afterAll(async () => {
+    await diff.teardown();
+  });
+
+  test('matches Button primary baseline', async () => {
+    const result = await diff.assertMatchesBaseline('components-button--primary', {
+      snapshotName: 'button-primary-desktop',
+      viewport: 'desktop',
+    });
+
+    expect(result.match).toBe(true);
+  });
+});
+```
+
 ### Running Tests
 
 1. Ensure your Storybook server is running:
@@ -111,6 +157,9 @@ describe('Storybook Visual Regression', () => {
    
    # Jest
    NODE_OPTIONS=--experimental-vm-modules jest visual.test.ts
+
+   # Playwright Test
+   playwright test visual.spec.ts
    ```
 
 *Tip: For CI, use `wait-on` and `concurrently` to automate this. See [CI/CD Integration](#cicd-integration).*
@@ -207,7 +256,7 @@ type StoryDiffConfig = {
   // Optional: Custom viewport definitions
   viewports?: Record<string, Viewport>;
   
-  // Optional: Puppeteer browser configuration
+  // Optional: Browser automation configuration
   browser?: BrowserConfig;
   
   // Optional: Image comparison settings
@@ -228,14 +277,25 @@ type StoryDiffConfig = {
 
 ```typescript
 type BrowserConfig = {
-  // Run browser in headless mode. Default: true (uses 'shell' mode)
-  // Set to false for headed mode
+  // Browser automation provider. Default: 'puppeteer'
+  provider?: 'puppeteer' | 'playwright';
+
+  // Playwright-only browser engine. Default: 'chromium'
+  browserName?: 'chromium' | 'firefox' | 'webkit';
+
+  // Playwright-only browser channel, e.g. 'chromium' or 'chrome'
+  channel?: string;
+
+  // Run browser in headless mode. Default: true
   headless?: boolean;
-  // Puppeteer launch args
+
+  // Extra browser launch args
   args?: readonly string[];
+
   // Launch timeout in ms
   timeout?: number;
-  // Custom Chrome/Chromium path
+
+  // Custom browser executable path
   executablePath?: string;
 };
 ```

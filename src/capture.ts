@@ -1,5 +1,4 @@
-import type { Page } from 'puppeteer';
-
+import type { ElementHandleAdapter, PageAdapter } from './browser.js';
 import type { CaptureOptions } from './story-diff.types.js';
 import type { Logger } from './logger.js';
 import { buildStoryUrl } from './storybook.js';
@@ -20,9 +19,9 @@ const NAVIGATION_TIMEOUT = 60_000;
 const MAX_RETRIES = 2;
 const RETRY_DELAY = 3_000;
 
-async function findStoryRoot(page: Page): Promise<ReturnType<Page['$']>> {
+async function findStoryRoot(page: PageAdapter): Promise<ElementHandleAdapter | null> {
   for (const selector of STORY_ROOT_SELECTORS) {
-    const element = await page.$(selector);
+    const element = await page.query(selector);
     if (element) {
       const box = await element.boundingBox();
       if (box && box.height > 0 && box.width > 0) {
@@ -40,7 +39,7 @@ async function delay(ms: number): Promise<void> {
 }
 
 export async function captureStory(
-  page: Page,
+  page: PageAdapter,
   storybookUrl: string,
   storyId: string,
   options: CaptureOptions = {},

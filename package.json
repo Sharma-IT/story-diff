@@ -1,7 +1,7 @@
 {
   "name": "story-diff",
-  "version": "0.1.0",
-  "description": "Test-framework-agnostic visual regression testing for Storybook components using Puppeteer",
+  "version": "0.2.0",
+  "description": "Test-framework-agnostic visual regression testing for Storybook components using Puppeteer or Playwright",
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
@@ -25,6 +25,7 @@
     "test:e2e": "./e2e/run-e2e.sh",
     "test:e2e:vitest": "vitest run -c e2e/vitest/vitest.config.ts",
     "test:e2e:jest": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --config e2e/jest/jest.config.ts",
+    "test:e2e:playwright": "playwright test -c e2e/playwright/playwright.config.ts",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [
@@ -32,6 +33,7 @@
     "visual-regression",
     "snapshot-testing",
     "puppeteer",
+    "playwright",
     "testing",
     "visual-testing",
     "component-testing",
@@ -52,15 +54,17 @@
   "dependencies": {
     "pixelmatch": "^6.0.0",
     "pngjs": "^7.0.0",
-    "puppeteer": "^24.0.0"
+    "puppeteer": "^24.41.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.59.1",
     "@types/jest": "^30.0.0",
     "@types/node": "^22.0.0",
     "@types/pixelmatch": "^5.2.6",
     "@types/pngjs": "^6.0.5",
     "concurrently": "^9.2.1",
     "jest": "^30.3.0",
+    "playwright": "^1.59.1",
     "ts-jest": "^29.4.9",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.0",
@@ -68,9 +72,13 @@
     "wait-on": "^9.0.5"
   },
   "peerDependencies": {
+    "playwright": "^1.59.1",
     "storybook": "^10.0.0"
   },
   "peerDependenciesMeta": {
+    "playwright": {
+      "optional": true
+    },
     "storybook": {
       "optional": false
     }

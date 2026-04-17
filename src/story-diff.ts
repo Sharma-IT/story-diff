@@ -1,5 +1,4 @@
-import type { Browser, Page } from 'puppeteer';
-
+import type { BrowserAdapter, PageAdapter } from './browser.js';
 import { closeBrowser, createPage, launchBrowser } from './browser.js';
 import { captureStory } from './capture.js';
 import { compareImages } from './compare.js';
@@ -32,8 +31,8 @@ const DEFAULT_VIEWPORTS: Readonly<Record<string, Viewport>> = {
 export class StoryDiff {
   private readonly config: StoryDiffConfig;
   private readonly logger: Logger;
-  private browser: Browser | null = null;
-  private page: Page | null = null;
+  private browser: BrowserAdapter | null = null;
+  private page: PageAdapter | null = null;
 
   constructor(config: StoryDiffConfig) {
     this.config = config;
@@ -246,7 +245,7 @@ export class StoryDiff {
     return resolved;
   }
 
-  private async getPage(): Promise<Page> {
+  private async getPage(): Promise<PageAdapter> {
     if (!this.page) {
       throw new NotInitializedError();
     }

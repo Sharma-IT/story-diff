@@ -1,4 +1,4 @@
-import type { Page } from 'puppeteer';
+import type { PageAdapter } from './browser.js';
 import type { Logger } from './logger.js';
 import { StorybookConnectionError } from './errors.js';
 
@@ -41,7 +41,7 @@ const STORYBOOK_SELECTORS = [
  * Navigates to the root URL and waits for known UI elements.
  */
 export async function waitForStorybookReady(
-  page: Page,
+  page: PageAdapter,
   storybookUrl: string,
   logger?: Logger,
   timeout = 60_000,

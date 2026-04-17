@@ -8,8 +8,18 @@ export type Viewport = {
   readonly height: number;
 };
 
+export type BrowserProvider = 'puppeteer' | 'playwright';
+
+export type PlaywrightBrowserName = 'chromium' | 'firefox' | 'webkit';
+
 export type BrowserConfig = {
-  /** Run browser in headless mode. Default: true (uses 'shell' mode). Set to false for headed mode. */
+  /** Browser automation provider. Default: 'puppeteer'. */
+  readonly provider?: BrowserProvider;
+  /** Playwright-only browser engine. Default: 'chromium'. */
+  readonly browserName?: PlaywrightBrowserName;
+  /** Playwright-only browser channel, e.g. 'chromium' or 'chrome'. */
+  readonly channel?: string;
+  /** Run browser in headless mode. Default: true. */
   readonly headless?: boolean;
   readonly args?: readonly string[];
   readonly timeout?: number;

@@ -13,6 +13,8 @@ export type {
   StoryDiffConfig,
   Viewport,
   BrowserConfig,
+  BrowserProvider,
+  PlaywrightBrowserName,
   ComparisonConfig,
   CaptureOptions,
   AssertOptions,

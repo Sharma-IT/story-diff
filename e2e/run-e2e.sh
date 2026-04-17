@@ -21,6 +21,9 @@ cd e2e/fixture
 npm install
 cd ../..
 
+echo "=> Ensuring Playwright Chromium is installed"
+npx playwright install chromium
+
 echo ""
 echo "=> Starting fixture Storybook server..."
 
@@ -46,7 +49,12 @@ npx concurrently \
    echo '==============================================' && \
    echo '  Running E2E: Jest ' && \
    echo '==============================================' && \
-   npm run test:e2e:jest"
+   npm run test:e2e:jest && \
+   echo '' && \
+   echo '==============================================' && \
+   echo '  Running E2E: Playwright ' && \
+   echo '==============================================' && \
+   npm run test:e2e:playwright"
 
 echo ""
 echo "=============================================="

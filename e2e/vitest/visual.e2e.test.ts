@@ -11,6 +11,10 @@ import {
 
 describe('Story Diff (Vitest E2E)', () => {
   const snapshotsDir = path.join(process.cwd(), 'e2e/snapshots/vitest');
+  const browserConfig = {
+    provider: 'puppeteer' as const,
+    headless: process.env.HEADLESS !== 'false',
+  };
 
   let diff: StoryDiff;
 
@@ -28,9 +32,7 @@ describe('Story Diff (Vitest E2E)', () => {
         level: (process.env.LOG_LEVEL as any) || 'silent',
       },
       // Browser configuration - headless mode for CI, can be set to false for debugging
-      browser: {
-        headless: process.env.HEADLESS !== 'false',
-      },
+      browser: browserConfig,
     });
 
     await diff.setup();
@@ -207,6 +209,7 @@ describe('Story Diff (Vitest E2E)', () => {
     const freshDiff = new StoryDiff({
       storybookUrl: 'http://localhost:6006',
       snapshotsDir,
+      browser: browserConfig,
     });
 
     // Act & Assert
@@ -223,6 +226,7 @@ describe('Story Diff (Vitest E2E)', () => {
       storybookUrl: 'http://localhost:6006',
       snapshotsDir: nestedDir,
       failOnMissingBaseline: false,
+      browser: browserConfig,
     });
     await nestedDiff.setup();
 
@@ -252,6 +256,7 @@ describe('Story Diff (Vitest E2E)', () => {
       storybookUrl: 'http://localhost:6006',
       snapshotsDir,
       update: true,
+      browser: browserConfig,
     });
     await updateDiff.setup();
 
@@ -283,6 +288,7 @@ describe('Story Diff (Vitest E2E)', () => {
       storybookUrl: 'http://localhost:6006',
       snapshotsDir,
       failOnMissingBaseline: true, // This is the new default, but being explicit for the test
+      browser: browserConfig,
     });
     await strictDiff.setup();
 

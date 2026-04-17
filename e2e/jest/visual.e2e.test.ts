@@ -5,6 +5,10 @@ import type { BatchResult } from '../../src/story-diff.types.js';
 
 describe('Story Diff (Jest E2E)', () => {
   const snapshotsDir = path.join(process.cwd(), 'e2e/snapshots/jest');
+  const browserConfig = {
+    provider: 'puppeteer' as const,
+    headless: process.env.HEADLESS !== 'false',
+  };
   let diff: StoryDiff;
 
   beforeAll(async () => {
@@ -21,9 +25,7 @@ describe('Story Diff (Jest E2E)', () => {
         level: (process.env.LOG_LEVEL as any) || 'silent',
       },
       // Browser configuration - headless mode for CI, can be set to false for debugging
-      browser: {
-        headless: process.env.HEADLESS !== 'false',
-      },
+      browser: browserConfig,
     });
 
     await diff.setup();
@@ -199,6 +201,7 @@ describe('Story Diff (Jest E2E)', () => {
       storybookUrl: 'http://localhost:6006',
       snapshotsDir,
       update: true,
+      browser: browserConfig,
     });
     await updateDiff.setup();
 
@@ -222,6 +225,7 @@ describe('Story Diff (Jest E2E)', () => {
       storybookUrl: 'http://localhost:6006',
       snapshotsDir,
       failOnMissingBaseline: true,
+      browser: browserConfig,
     });
     await strictDiff.setup();
 
