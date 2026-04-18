@@ -230,9 +230,6 @@ test.describe('Story Diff (Playwright E2E)', () => {
   });
 
   test('supports native Playwright snapshotting method', async () => {
-    // Requirement: Allow using Playwright's native comparison engine instead of pixelmatch/pngjs.
-    // Case: happy-path
-    // Invariant: Native snapshotting should work and respect thresholds.
     const nativeDiff = new StoryDiff({
       storybookUrl: 'http://localhost:6006',
       snapshotsDir,
@@ -275,30 +272,15 @@ test.describe('Story Diff Root Config Autoload (Playwright E2E)', () => {
   });
 
   test('auto-loads root config defaults without constructor config', async () => {
-    // Requirement: Consumers should be able to rely on a discovered root config file instead of wiring constructor config in hooks.
-    // Case: happy-path
-    // Invariant: A constructor-less instance should use discovered defaults for assertions.
-    // Arrange
-
-    // Act
     const result = await diff.assertMatchesBaseline('components-button--primary', {
       snapshotName: 'button-primary-dark-auto-playwright',
     });
-
-    // Assert
     expect(result.match).toBe(true);
   });
 
   test('uses configured batch definitions when runAll is called without arguments', async () => {
-    // Requirement: The root config may optionally own runAll definitions.
-    // Case: happy-path
-    // Invariant: Calling runAll without arguments should execute the configured batch tests.
-    // Arrange
-
-    // Act
     const results = await diff.runAll();
 
-    // Assert
     expect(results).toHaveLength(1);
     expect(results[0]?.snapshotName).toBe('button-secondary-mobile');
     expect(results[0]?.result.match).toBe(true);

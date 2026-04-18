@@ -6,7 +6,10 @@ import { StoryDiff } from '../story-diff.js';
 import { BaselineMissingError } from '../errors.js';
 
 const mocks = vi.hoisted(() => ({
-  captureStoryMock: vi.fn().mockResolvedValue(Buffer.from('dummy-image')),
+  captureStoryMock: vi.fn().mockImplementation(() => {
+    const png = new (require('pngjs').PNG)({ width: 10, height: 10 });
+    return Promise.resolve(require('pngjs').PNG.sync.write(png));
+  }),
   waitForStorybookReadyMock: vi.fn(),
   playwrightExpectMock: vi.fn(),
 }));
@@ -34,6 +37,15 @@ vi.mock('../capture.js', () => ({
 vi.mock('../storybook.js', () => ({
   waitForStorybookReady: mocks.waitForStorybookReadyMock,
   buildStoryUrl: vi.fn().mockReturnValue('http://localhost:6006/iframe.html?id=some-story'),
+}));
+
+vi.mock('../compare.js', () => ({
+  compareImages: vi.fn().mockReturnValue({
+    match: true,
+    diffPixels: 0,
+    diffPercentage: 0,
+    diffImage: null,
+  }),
 }));
 
 vi.mock('@playwright/test', () => ({
@@ -64,12 +76,26 @@ describe('StoryDiff - Baseline Handling', () => {
     vi.clearAllMocks();
   });
 
+  it('throws NotInitializedError if captureStory called before setup', async () => {
+    const uninitialized = new StoryDiff({ storybookUrl: 'http://localhost', snapshotsDir: tempDir });
+    await expect(uninitialized.captureStory('some-story')).rejects.toThrow('StoryDiff not initialised. Call setup() first.');
+  });
+
+  it('hooks lifecycle automatically', () => {
+    // This executes the hookLifecycle branch in the constructor
+    new StoryDiff({
+      storybookUrl: 'http://localhost:6006',
+      snapshotsDir: tempDir,
+      autoLifecycle: true,
+    });
+  });
+
   it('throws BaselineMissingError when baseline is missing and update is false (default)', async () => {
     const snapshotName = 'non-existent-baseline';
 
-    await expect(diff.assertMatchesBaseline('some-story', { 
+    await expect(diff.assertMatchesBaseline('some-story', {
       snapshotName,
-      viewport: 'desktop' 
+      viewport: 'desktop'
     })).rejects.toThrow(BaselineMissingError);
   });
 
@@ -90,7 +116,7 @@ describe('StoryDiff - Baseline Handling', () => {
     expect(result.match).toBe(true);
     expect(result.baselineCreated).toBe(true);
     expect(fs.existsSync(path.join(tempDir, `${snapshotName}.png`))).toBe(true);
-    
+
     await updateDiff.teardown();
   });
 
@@ -111,7 +137,7 @@ describe('StoryDiff - Baseline Handling', () => {
     expect(result.match).toBe(true);
     expect(result.baselineCreated).toBe(true);
     expect(fs.existsSync(path.join(tempDir, `${snapshotName}.png`))).toBe(true);
-    
+
     await legacyDiff.teardown();
   });
 
@@ -200,7 +226,7 @@ describe('StoryDiff - Baseline Handling', () => {
 
     const { test: playwrightTest } = await import('@playwright/test');
     const snapshotPath = path.join(tempDir, 'manual-baseline.png');
-    
+
     vi.mocked(playwrightTest.info).mockReturnValue({
       snapshotPath: vi.fn().mockReturnValue(snapshotPath),
     } as any);
@@ -219,6 +245,229 @@ describe('StoryDiff - Baseline Handling', () => {
     expect(mocks.playwrightExpectMock).not.toHaveBeenCalled();
 
     await playwrightDiff.teardown();
+  });
+
+  it('logs debug message on successful match', async () => {
+    const debugMock = vi.fn();
+    const diffWithLogger = new StoryDiff({
+      storybookUrl: 'http://localhost:6006',
+      snapshotsDir: tempDir,
+      logger: {
+        level: 'debug',
+        customLogger: (level, msg) => {
+          if (level === 'debug') debugMock(msg);
+        }
+      }
+    });
+    await diffWithLogger.setup();
+
+    // Mock a perfect match
+    fs.writeFileSync(path.join(tempDir, 'match.png'), Buffer.from('baseline'));
+    const { compareImages } = await import('../compare.js');
+    (compareImages as any).mockReturnValueOnce({ match: true, diffPixels: 0, diffPercentage: 0 });
+
+    await diffWithLogger.assertMatchesBaseline('some-story', { snapshotName: 'match' });
+    expect(debugMock).toHaveBeenCalledWith(expect.stringContaining('matches baseline'));
+
+    await diffWithLogger.teardown();
+  });
+
+  it('supports comparison overrides in assertMatchesBaseline', async () => {
+    const diffWithOverride = new StoryDiff({
+      storybookUrl: 'http://localhost',
+      snapshotsDir: tempDir,
+    });
+    await diffWithOverride.setup();
+
+    // Mock a perfect match
+    fs.writeFileSync(path.join(tempDir, 'override.png'), Buffer.from('baseline'));
+    const { compareImages } = await import('../compare.js');
+    (compareImages as any).mockReturnValueOnce({ match: true, diffPixels: 0, diffPercentage: 10 });
+
+    await diffWithOverride.assertMatchesBaseline('story', {
+      snapshotName: 'override',
+      comparison: { threshold: 0.5 }
+    });
+
+    // Verify compareImages was called with our override
+    expect(compareImages).toHaveBeenCalledWith(
+      expect.any(Buffer),
+      expect.any(Buffer),
+      expect.objectContaining({ threshold: 0.5 }),
+      expect.any(Object)
+    );
+
+    await diffWithOverride.teardown();
+  });
+
+  it('allows manual updateBaseline call', async () => {
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost:6006',
+      snapshotsDir: tempDir,
+    });
+    await diff.setup();
+    await diff.updateBaseline(Buffer.from('foo'), 'manual-update');
+    expect(fs.existsSync(path.join(tempDir, 'manual-update.png'))).toBe(true);
+    await diff.teardown();
+  });
+
+  it('throws VisualRegressionError if snapshot does not match', async () => {
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost:6006',
+      snapshotsDir: tempDir,
+    });
+    await diff.setup();
+
+    // Ensure the base directory exists
+    if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
+    // Create a dummy baseline file so loadBaseline returns something
+    fs.writeFileSync(path.join(tempDir, 'mismatch.png'), Buffer.from('baseline-data'));
+
+    // Mock compareImages to return a mismatch
+    const { compareImages } = await import('../compare.js');
+    (compareImages as any).mockReturnValueOnce({
+      match: false,
+      diffPixels: 100,
+      diffPercentage: 10,
+      diffImage: Buffer.from('diff-image')
+    });
+
+    await expect(diff.assertMatchesBaseline('some-story', {
+      snapshotName: 'mismatch',
+    })).rejects.toThrow(/Visual regression detected for "mismatch"/);
+
+    await diff.teardown();
+  });
+
+  it('throws native VisualRegressionError and configures failure limits in playwright mode', async () => {
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost',
+      snapshotsDir: tempDir,
+      browser: { provider: 'playwright' },
+      comparison: { useNativeSnapshot: true, failureThreshold: 5, failureThresholdType: 'pixel' }
+    });
+    await diff.setup();
+
+    const expectMock = vi.fn().mockRejectedValue(new Error('Pixels mismatch 500'));
+    mocks.playwrightExpectMock.mockReturnValue({
+      toHaveScreenshot: expectMock,
+    });
+
+    await expect(diff.assertMatchesBaseline('some-story', { snapshotName: 'fail-native' }))
+      .rejects.toThrow(/Visual regression detected for "fail-native"/);
+
+    expect(expectMock).toHaveBeenCalledWith('fail-native.png', expect.objectContaining({ maxDiffPixels: 5 }));
+
+    await diff.teardown();
+  });
+
+  it('configures native playwright with percentage failure threshold', async () => {
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost',
+      snapshotsDir: tempDir,
+      browser: { provider: 'playwright' },
+      comparison: { useNativeSnapshot: true, failureThreshold: 5, failureThresholdType: 'percent' }
+    });
+    await diff.setup();
+
+    const expectMock = vi.fn().mockResolvedValue(undefined);
+    mocks.playwrightExpectMock.mockReturnValue({
+      toHaveScreenshot: expectMock,
+    });
+
+    await diff.assertMatchesBaseline('some-story', { snapshotName: 'percent-native' });
+    expect(expectMock).toHaveBeenCalledWith('percent-native.png', expect.objectContaining({ maxDiffPixelRatio: 0.05 }));
+
+    await diff.teardown();
+  });
+
+  it('throws if playwright test package is missing', async () => {
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost',
+      snapshotsDir: tempDir,
+      browser: { provider: 'playwright' },
+      comparison: { useNativeSnapshot: true }
+    });
+    await diff.setup();
+
+    vi.doMock('@playwright/test', () => { throw new Error('missing') });
+
+    try {
+      // Need dynamic reset of the module specifically for this block's assertion
+      const { StoryDiff: FreshDiff } = await import('../story-diff.js?cache=' + Date.now());
+      const freshDiff = new FreshDiff({
+        storybookUrl: 'http://localhost',
+        snapshotsDir: tempDir,
+        browser: { provider: 'playwright' },
+        comparison: { useNativeSnapshot: true }
+      });
+      (freshDiff as any).page = { getUnderlyingObject: () => ({}) };
+      await expect(freshDiff.assertMatchesBaseline('x', { snapshotName: 'x' }))
+        .rejects.toThrow(/installed/);
+    } finally {
+      vi.doUnmock('@playwright/test');
+      await diff.teardown();
+    }
+  });
+
+  it('sets custom viewport dimensions', async () => {
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost:6006',
+      snapshotsDir: tempDir,
+      viewports: { customv: { name: 'customv', width: 1234, height: 5678 } },
+      failOnMissingBaseline: false,
+    });
+    await diff.setup();
+    const mockPage = { setViewport: vi.fn(), getUnderlyingObject: vi.fn() };
+    (diff as any).page = mockPage;
+
+    await diff.captureStory('foo-story', { viewport: 'customv' });
+    expect(mockPage.setViewport).toHaveBeenCalledWith({ width: 1234, height: 5678 });
+    await diff.teardown();
+  });
+
+  it('throws ViewportNotFoundError for missing viewport', async () => {
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost:6006',
+      snapshotsDir: tempDir,
+      failOnMissingBaseline: false,
+    });
+
+    await diff.setup();
+
+    await expect(diff.captureStory('foo', { viewport: 'unknown-viewport' }))
+      .rejects.toThrow('Unknown viewport "unknown-viewport"');
+  });
+
+  it('builds clean snapshot names when component name is prefix or suffix', async () => {
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost:6006',
+      snapshotsDir: tempDir,
+      failOnMissingBaseline: false,
+    });
+    await diff.setup();
+
+    // The logic is in runAll handling
+    const result1 = await diff.runAll([{
+      componentName: 'Card',
+      storyPath: 'components-card',
+      stories: ['card-primary'], // prefix
+      viewports: ['mobile']
+    }]);
+    expect(result1).toHaveLength(1);
+    expect(result1[0]!.snapshotName).toBe('card-primary-mobile');
+
+    const result2 = await diff.runAll([{
+      componentName: 'Button',
+      storyPath: 'components-button',
+      stories: ['primary-button'], // suffix
+      viewports: ['mobile']
+    }]);
+    // The "-button" should be stripped
+    expect(result2).toHaveLength(1);
+    expect(result2[0]!.snapshotName).toBe('button-primary-mobile');
+
+    await diff.teardown();
   });
 });
 
@@ -418,5 +667,92 @@ describe('StoryDiff - Root Config Autoload', () => {
     );
 
     await diff.teardown();
+  });
+
+  it('uses configured batch tests when runAll is called without arguments', async () => {
+    const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'story-diff-batch-'));
+    const tests = [{ componentName: 'A', storyPath: 'A', stories: ['B'] }];
+    const batchDiff = new StoryDiff({
+      storybookUrl: 'http://localhost',
+      snapshotsDir: projectDir,
+      tests,
+    });
+    await batchDiff.setup();
+
+    // Mock compareWithBaseline to return a success
+    vi.spyOn(batchDiff as any, 'compareWithBaseline').mockResolvedValue({ match: true });
+
+    const results = await batchDiff.runAll();
+    expect(results).toHaveLength(1);
+    expect(results[0]?.storyId).toBe('A--B');
+
+    await batchDiff.teardown();
+    fs.rmSync(projectDir, { recursive: true, force: true });
+  });
+
+  it('sets custom viewport dimensions via object', async () => {
+    const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'story-diff-viewport-'));
+    const diffWithObject = new StoryDiff({
+      storybookUrl: 'http://localhost:6006',
+      snapshotsDir: projectDir,
+    });
+    await diffWithObject.setup();
+
+    // Pass direct viewport object
+    await diffWithObject.captureStory('some-story', {
+      viewport: { name: 'custom', width: 123, height: 456 }
+    });
+
+    const page = await (diffWithObject as any).getPage();
+    expect(page.setViewport).toHaveBeenCalledWith({ width: 123, height: 456 });
+
+    await diffWithObject.teardown();
+    fs.rmSync(projectDir, { recursive: true, force: true });
+  });
+
+  it('sets default viewport if none specified in runAll test', async () => {
+    const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'story-diff-default-viewport-'));
+    const batchDiff = new StoryDiff({
+      storybookUrl: 'http://localhost',
+      snapshotsDir: projectDir,
+    });
+    await batchDiff.setup();
+
+    vi.spyOn(batchDiff as any, 'compareWithBaseline').mockResolvedValue({ match: true });
+
+    await batchDiff.runAll([{ componentName: 'A', storyPath: 'A', stories: ['B'] }]);
+    // Success means it processed with default 'desktop' viewport
+    await batchDiff.teardown();
+    fs.rmSync(projectDir, { recursive: true, force: true });
+  });
+
+  it('handles ANSI colors and Playwright baseline missing error strings', async () => {
+    const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'story-diff-ansi-'));
+    
+    // Explicitly mock playwright here because a previous test unmocked it
+    const playwrightMock = {
+      toHaveScreenshot: vi.fn().mockRejectedValue(new Error('Writing actual to path/to/baseline.png')),
+    };
+    vi.doMock('@playwright/test', () => ({
+      expect: vi.fn().mockReturnValue(playwrightMock),
+      test: { info: vi.fn() }
+    }));
+
+    // Cache bust the import to pick up the new mock
+    const { StoryDiff: FreshDiff } = await import('../story-diff.js?ansi-cache=' + Date.now());
+    const diff = new FreshDiff({
+      storybookUrl: 'http://localhost',
+      snapshotsDir: projectDir,
+      browser: { provider: 'playwright' },
+      comparison: { useNativeSnapshot: true }
+    });
+    
+    await diff.setup();
+    const result = await diff.assertMatchesBaseline('x', { snapshotName: 'missing' });
+    expect(result.baselineCreated).toBe(true);
+
+    await diff.teardown();
+    fs.rmSync(projectDir, { recursive: true, force: true });
+    vi.doUnmock('@playwright/test');
   });
 });

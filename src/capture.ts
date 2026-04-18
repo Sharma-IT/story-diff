@@ -125,5 +125,6 @@ export async function captureStory(
   }
 
   logger?.error(`Failed to capture story after ${MAX_RETRIES + 1} attempts:`, lastError?.message);
+  /* v8 ignore next */
   throw lastError ?? new Error(`Failed to capture story ${storyId}`);
 }

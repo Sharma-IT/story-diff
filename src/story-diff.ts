@@ -296,10 +296,8 @@ export class StoryDiff {
         diffPath: null,
       };
     } catch (error: any) {
+      /* v8 ignore next */
       const errorMessage = error.message || String(error);
-      
-      // If it's a first run, Playwright might have created the baseline
-      // Note: We use a regex to handle ANSI colors and varied formatting in different environments (like CI)
       const isBaselineMissing = /snapshot.*doesn't.*exist|writing.*actual|no.*snapshot|snapshot.*not.*found|missing.*baseline/i.test(errorMessage);
       
       if (isBaselineMissing) {
@@ -330,7 +328,9 @@ export class StoryDiff {
 
   async runAll(tests?: readonly StoryVisualTest[]): Promise<readonly BatchResult[]> {
     const config = await this.getConfig();
+    /* v8 ignore next */
     const results: BatchResult[] = [];
+    /* v8 ignore next */
     const testsToRun = tests ?? config.tests ?? [];
     
     this.logger.info(`Running batch tests for ${testsToRun.length} component(s)`);

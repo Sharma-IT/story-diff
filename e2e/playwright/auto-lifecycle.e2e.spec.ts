@@ -2,9 +2,6 @@ import path from 'node:path';
 import { expect, test } from '@playwright/test';
 import { hookLifecycle, StoryDiff } from '../../src/index.js';
 
-// Requirement: StoryDiff should allow explicit lifecycle management via hookLifecycle for environments like Playwright Test
-// Case: happy-path
-// Invariant: Test passes when hookLifecycle is used with test.beforeAll/test.afterAll
 test.describe('Story Diff Auto Lifecycle (Playwright E2E)', () => {
   const snapshotsDir = path.join(process.cwd(), 'e2e/snapshots/playwright-auto');
   

@@ -2,12 +2,10 @@ node_modules/
 dist/
 *.tsbuildinfo
 
-# Test artifacts
+# Testing
 __diff_output__/
 *-current.png
-test-results/.last-run.json
-
-# E2E fixture
+/coverage
 e2e/fixture/node_modules/
 e2e/fixture/storybook-static/
 e2e/snapshots/

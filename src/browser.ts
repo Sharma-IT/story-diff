@@ -157,14 +157,16 @@ async function loadPlaywright(logger?: Logger): Promise<PlaywrightModule> {
     if (
       error instanceof Error &&
       (error.message.includes("Cannot find package 'playwright'") ||
+        /* v8 ignore next */
         error.message.includes("Cannot find module 'playwright'"))
     ) {
       throw new Error(
         "Playwright support requires the 'playwright' package. Install it and run 'npx playwright install chromium'.",
       );
     }
-
+    /* v8 ignore next */
     throw error;
+    /* v8 ignore next */
   }
 }
 

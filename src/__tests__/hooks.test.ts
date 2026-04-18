@@ -14,12 +14,10 @@ describe('hookLifecycle', () => {
     vi.spyOn(diff, 'teardown').mockResolvedValue(undefined);
   });
 
-  // Requirement: Detect and use global beforeAll/afterAll
-  // Case: happy-path
   it('detects and uses global beforeAll/afterAll', async () => {
     const beforeAllSpy = vi.fn();
     const afterAllSpy = vi.fn();
-    
+
     (globalThis as any).beforeAll = beforeAllSpy;
     (globalThis as any).afterAll = afterAllSpy;
 
@@ -45,8 +43,6 @@ describe('hookLifecycle', () => {
     delete (globalThis as any).afterAll;
   });
 
-  // Requirement: Use custom hooks provided in config
-  // Case: happy-path
   it('uses custom hooks from config', () => {
     const beforeAllSpy = vi.fn();
     const afterAllSpy = vi.fn();
@@ -61,8 +57,6 @@ describe('hookLifecycle', () => {
     expect(afterAllSpy).toHaveBeenCalled();
   });
 
-  // Requirement: Do nothing if disabled
-  // Case: boundary
   it('does nothing if disabled', () => {
     const beforeAllSpy = vi.fn();
     (globalThis as any).beforeAll = beforeAllSpy;

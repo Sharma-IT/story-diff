@@ -2,9 +2,6 @@ import { describe, it, expect } from '@jest/globals';
 import path from 'node:path';
 import { StoryDiff } from '../../src/index.js';
 
-// Requirement: StoryDiff should automatically handle setup and teardown in Jest if autoLifecycle is enabled
-// Case: happy-path
-// Invariant: Test passes without manual beforeAll/afterAll calls
 describe('Story Diff Auto Lifecycle (Jest E2E)', () => {
   const snapshotsDir = path.join(process.cwd(), 'e2e/snapshots/jest-auto');
 
