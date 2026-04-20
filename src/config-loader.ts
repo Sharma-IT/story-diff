@@ -21,16 +21,15 @@ let cachedConfigPromise: Promise<StoryDiffConfig> | null = null;
 export async function resolveStoryDiffConfig(
   config?: StoryDiffConfig,
 ): Promise<StoryDiffConfig> {
-  if (config) {
-    return config;
+  if (config && config.storybookUrl && config.snapshotsDir) {
+    return config as StoryDiffConfig;
   }
 
-  cachedConfigPromise ??= loadDiscoveredStoryDiffConfig();
-  return cachedConfigPromise;
+  return loadDiscoveredStoryDiffConfig(config?.cwd);
 }
 
-async function loadDiscoveredStoryDiffConfig(): Promise<StoryDiffConfig> {
-  const configPath = findStoryDiffConfig(process.cwd());
+async function loadDiscoveredStoryDiffConfig(cwd?: string): Promise<StoryDiffConfig> {
+  const configPath = findStoryDiffConfig(cwd || process.cwd());
 
   if (!configPath) {
     throw new ConfigNotFoundError(SUPPORTED_CONFIG_FILES);

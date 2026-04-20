@@ -35,12 +35,15 @@ describe('Errors', () => {
     expect(errorWithDiff.message).toContain('Diff image: /path/to/diff');
 
     const errorWithoutDiff = new VisualRegressionError('snap2', 5, 200, '/path/to/snap2', null);
+    expect(errorWithoutDiff.message).toBe('Visual regression detected for "snap2".\nDiff: 5.00% (200 pixels)');
     expect(errorWithoutDiff.message).not.toContain('Diff image:');
+    expect(errorWithoutDiff.name).toBe('VisualRegressionError');
   });
 
   it('instantiates BaselineMissingError', () => {
-    const error = new BaselineMissingError('snap4', '/path');
-    expect(error.message).toContain('Baseline image missing for "snap4"');
+    const error = new BaselineMissingError('snap4', '/path/to/baseline.png');
+    expect(error.message).toBe('Baseline image missing for "snap4". Expected at /path/to/baseline.png.');
+    expect(error.name).toBe('BaselineMissingError');
   });
 
   it('instantiates StorybookConnectionError', () => {
@@ -59,5 +62,22 @@ describe('Errors', () => {
   it('instantiates InvalidConfigError', () => {
     const error = new InvalidConfigError('/config.js', 'bad data');
     expect(error.message).toContain('Invalid StoryDiff configuration in /config.js: bad data');
+  });
+
+  it('ViewportNotFoundError separates available viewports with comma+space', () => {
+    // Requirement: available.join(', ') must use ', ' separator (not '')
+    // Case: boundary — multiple available viewports
+    const error = new ViewportNotFoundError('huge', ['mobile', 'tablet', 'desktop']);
+    expect(error.message).toContain('mobile, tablet, desktop');
+    // If join('') were used: 'mobiletabletdesktop' — the comma+space must be present
+    expect(error.message).toContain(', ');
+  });
+
+  it('ConfigNotFoundError separates file names with comma+space', () => {
+    // Requirement: fileNames.join(', ') must use ', ' separator (not '')
+    // Case: boundary — multiple file names
+    const error = new ConfigNotFoundError(['story-diff.config.mjs', 'story-diff.json']);
+    expect(error.message).toContain('story-diff.config.mjs, story-diff.json');
+    expect(error.message).toContain(', ');
   });
 });

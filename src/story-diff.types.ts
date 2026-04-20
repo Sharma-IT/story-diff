@@ -66,9 +66,10 @@ export type ComparisonConfig = {
 };
 
 export type StoryDiffConfig = {
-  readonly storybookUrl: string;
-  readonly snapshotsDir: string;
+  readonly storybookUrl?: string;
+  readonly snapshotsDir?: string;
   readonly viewports?: Readonly<Record<string, Viewport>>;
+  readonly cwd?: string;
   readonly browser?: BrowserConfig;
   readonly comparison?: ComparisonConfig;
   /** When true, baselines are updated instead of compared. Default: false */
@@ -97,6 +98,10 @@ export type CaptureOptions = {
   readonly waitForSelector?: string;
   /** Milliseconds to wait after page load before capturing */
   readonly waitForTimeout?: number;
+  /** Maximum number of retries if capture fails. @default 2 */
+  readonly maxRetries?: number;
+  /** Delay between retries in milliseconds. @default 3000 */
+  readonly retryDelay?: number;
 };
 
 export type AssertOptions = CaptureOptions & {

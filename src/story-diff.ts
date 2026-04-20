@@ -389,14 +389,15 @@ export class StoryDiff {
     return this.page;
   }
 
-  private async getConfig(): Promise<StoryDiffConfig> {
-    if (this.config) {
-      return this.config;
+  private async getConfig(): Promise<StoryDiffConfig & { storybookUrl: string; snapshotsDir: string }> {
+    if (this.config && this.config.storybookUrl && this.config.snapshotsDir) {
+      return this.config as StoryDiffConfig & { storybookUrl: string; snapshotsDir: string };
     }
 
-    this.config = await resolveStoryDiffConfig();
+    const resolved = await resolveStoryDiffConfig(this.config ?? undefined);
+    this.config = resolved;
     this.logger = new Logger(this.config.logger);
-    return this.config;
+    return this.config as StoryDiffConfig & { storybookUrl: string; snapshotsDir: string };
   }
 
   private mergeCaptureOptions(

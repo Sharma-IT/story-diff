@@ -22,3 +22,5 @@ Thumbs.db
 *.swp
 *.swo
 /.npm
+/.stryker-tmp
+reports/mutation/mutation.html

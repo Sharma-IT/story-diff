@@ -16,8 +16,8 @@ const STORY_ROOT_SELECTORS = [
 
 const DEFAULT_WAIT_TIMEOUT = 0; // No implicit wait - components must be ready or use waitForSelector
 const NAVIGATION_TIMEOUT = 60_000;
-const MAX_RETRIES = 2;
-const RETRY_DELAY = 3_000;
+const DEFAULT_MAX_RETRIES = 2;
+const DEFAULT_RETRY_DELAY = 3_000;
 
 async function findStoryRoot(page: PageAdapter): Promise<ElementHandleAdapter | null> {
   for (const selector of STORY_ROOT_SELECTORS) {
@@ -45,14 +45,20 @@ export async function captureStory(
   options: CaptureOptions = {},
   logger?: Logger,
 ): Promise<Buffer> {
-  const { globals, waitForSelector, waitForTimeout = DEFAULT_WAIT_TIMEOUT } = options;
+  const { 
+    globals, 
+    waitForSelector, 
+    waitForTimeout = DEFAULT_WAIT_TIMEOUT,
+    maxRetries = DEFAULT_MAX_RETRIES,
+    retryDelay = DEFAULT_RETRY_DELAY,
+  } = options;
 
   const url = buildStoryUrl(storybookUrl, storyId, globals);
   logger?.debug(`Navigating to: ${url}`);
 
   let lastError: Error | null = null;
 
-  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       if (attempt > 0) {
         logger?.warn(`Retry attempt ${attempt} for story: ${storyId}`);
@@ -117,14 +123,14 @@ export async function captureStory(
         : Buffer.from(screenshotData);
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
-      if (attempt < MAX_RETRIES) {
-        logger?.warn(`Capture failed, retrying in ${RETRY_DELAY}ms...`, lastError.message);
-        await delay(RETRY_DELAY);
+      if (attempt < maxRetries) {
+        logger?.warn(`Capture failed, retrying in ${retryDelay}ms...`, lastError.message);
+        await delay(retryDelay);
       }
     }
   }
 
-  logger?.error(`Failed to capture story after ${MAX_RETRIES + 1} attempts:`, lastError?.message);
+  logger?.error(`Failed to capture story after ${maxRetries + 1} attempts:`, lastError?.message);
   /* v8 ignore next */
   throw lastError ?? new Error(`Failed to capture story ${storyId}`);
 }

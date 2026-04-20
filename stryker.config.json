@@ -13,9 +13,6 @@
     "src/**/*.ts",
     "!src/**/*.test.ts",
     "!src/**/*.types.ts",
-    "!src/index.ts",
-    "!src/storybook.ts",
-    "!src/browser.ts",
-    "!src/capture.ts"
+    "!src/index.ts"
   ]
 }

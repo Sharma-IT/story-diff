@@ -114,4 +114,11 @@ describe('Logger', () => {
     expect(customLogger).toHaveBeenCalledTimes(1);
     expect(customLogger).toHaveBeenCalledWith('error', 'error message');
   });
+
+  it('honors default silent level even when empty config is provided', () => {
+    const logger = new Logger({});
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    logger.error('wont be logged');
+    expect(consoleSpy).not.toHaveBeenCalled();
+  });
 });

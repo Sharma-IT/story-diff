@@ -2,9 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 function ensureDir(dirPath: string): void {
-  if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath, { recursive: true });
-  }
+  fs.mkdirSync(dirPath, { recursive: true });
 }
 
 function snapshotPath(snapshotsDir: string, name: string): string {
