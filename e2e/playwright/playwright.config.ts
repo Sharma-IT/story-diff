@@ -5,5 +5,5 @@ export default defineConfig({
   testMatch: ['e2e/playwright/**/*.spec.ts'],
   timeout: 60_000,
   fullyParallel: false,
-  workers: 1,
+  workers: 2,
 });
