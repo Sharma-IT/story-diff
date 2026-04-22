@@ -25,37 +25,37 @@ const DEFAULT_ARGS = [
 
 type LaunchWaitUntil = 'load' | 'domcontentloaded';
 
-type ViewportSize = {
+interface ViewportSize {
   readonly width: number;
   readonly height: number;
-};
+}
 
-type WaitForOptions = {
+interface WaitForOptions {
   readonly timeout: number;
-};
+}
 
-type GotoOptions = {
+interface GotoOptions {
   readonly waitUntil: LaunchWaitUntil;
   readonly timeout: number;
-};
+}
 
-type ScreenshotOptions = {
+interface ScreenshotOptions {
   readonly path?: string;
   readonly type?: 'png';
   readonly omitBackground?: boolean;
-};
+}
 
-type BoundingBox = {
+interface BoundingBox {
   readonly x: number;
   readonly y: number;
   readonly width: number;
   readonly height: number;
-};
+}
 
-export type BrowserResponse = {
+export interface BrowserResponse {
   ok(): boolean;
   status(): number;
-};
+}
 
 export interface ElementHandleAdapter {
   boundingBox(): Promise<BoundingBox | null>;
@@ -115,7 +115,7 @@ export async function launchBrowser(
   }
 
   const browser = await launchPuppeteer({
-    headless: headless === false ? false : 'shell',
+    headless: !headless ? false : 'shell',
     args: [...DEFAULT_ARGS, ...args],
     timeout,
     ...(executablePath ? { executablePath } : {}),
@@ -162,11 +162,11 @@ async function loadPlaywright(logger?: Logger): Promise<PlaywrightModule> {
     ) {
       throw new Error(
         "Playwright support requires the 'playwright' package. Install it and run 'npx playwright install chromium'.",
+        { cause: error },
       );
     }
     /* v8 ignore next */
-    throw error;
-    /* v8 ignore next */
+    throw new Error(error instanceof Error ? error.message : String(error), { cause: error });
   }
 }
 
@@ -212,10 +212,12 @@ class PuppeteerPageAdapter implements PageAdapter {
 
   async setDefaultNavigationTimeout(timeout: number): Promise<void> {
     this.page.setDefaultNavigationTimeout(timeout);
+    return Promise.resolve();
   }
 
   async setDefaultTimeout(timeout: number): Promise<void> {
     this.page.setDefaultTimeout(timeout);
+    return Promise.resolve();
   }
 
   async goto(url: string, options: GotoOptions): Promise<BrowserResponse | null> {
@@ -226,12 +228,14 @@ class PuppeteerPageAdapter implements PageAdapter {
     await this.page.waitForFunction(expression, options);
   }
 
+
+
   async waitForSelector(selector: string, options: WaitForOptions): Promise<void> {
     await this.page.waitForSelector(selector, options);
   }
 
   async query(selector: string): Promise<ElementHandleAdapter | null> {
-    const element = await this.page.$(selector);
+    const element = (await this.page.$(selector)) as PuppeteerElementHandle | null;
     return element ? new PuppeteerElementAdapter(element) : null;
   }
 
@@ -287,10 +291,12 @@ class PlaywrightPageAdapter implements PageAdapter {
 
   async setDefaultNavigationTimeout(timeout: number): Promise<void> {
     this.page.setDefaultNavigationTimeout(timeout);
+    return Promise.resolve();
   }
 
   async setDefaultTimeout(timeout: number): Promise<void> {
     this.page.setDefaultTimeout(timeout);
+    return Promise.resolve();
   }
 
   async goto(url: string, options: GotoOptions): Promise<BrowserResponse | null> {

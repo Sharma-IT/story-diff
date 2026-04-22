@@ -101,8 +101,8 @@ describe('resolveStoryDiffConfig', () => {
       snapshotsDir: 'snaps'
     }));
 
-    vi.spyOn(fs, 'existsSync').mockImplementation((p: string) => realFs.existsSync(p));
-    vi.spyOn(fs, 'readFileSync').mockImplementation((p: any, o: any) => realFs.readFileSync(p, o));
+    vi.spyOn(fs, 'existsSync').mockImplementation((p) => realFs.existsSync(p));
+    vi.spyOn(fs, 'readFileSync').mockImplementation((p, o) => realFs.readFileSync(p as fs.PathOrFileDescriptor, o as any));
 
     try {
       const config = await resolveStoryDiffConfig({ cwd: subDir });

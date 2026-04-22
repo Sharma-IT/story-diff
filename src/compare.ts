@@ -5,12 +5,12 @@ import type { ComparisonConfig } from './story-diff.types.js';
 import type { Logger } from './logger.js';
 import { SizeMismatchError } from './errors.js';
 
-type CompareResult = {
+interface CompareResult {
   readonly match: boolean;
   readonly diffPixels: number;
   readonly diffPercentage: number;
   readonly diffImage: Buffer | null;
-};
+}
 
 export function compareImages(
   actual: Buffer,
@@ -28,7 +28,7 @@ export function compareImages(
   const actualPng = PNG.sync.read(actual);
   const expectedPng = PNG.sync.read(expected);
 
-  logger?.debug(`Comparing images: actual=${actualPng.width}x${actualPng.height}, expected=${expectedPng.width}x${expectedPng.height}`);
+  logger?.debug(`Comparing images: actual=${String(actualPng.width)}x${String(actualPng.height)}, expected=${String(expectedPng.width)}x${String(expectedPng.height)}`);
 
   const hasSizeMismatch =
     actualPng.width !== expectedPng.width || actualPng.height !== expectedPng.height;
@@ -87,7 +87,7 @@ export function compareImages(
   const match = diffPixels === 0 || isWithinThreshold;
   const diffImage = diffPixels > 0 ? PNG.sync.write(diffPng) : null;
 
-  logger?.debug(`Comparison result: ${diffPixels} pixels differ (${diffPercentage.toFixed(2)}%), match=${match}`);
+  logger?.debug(`Comparison result: ${String(diffPixels)} pixels differ (${diffPercentage.toFixed(2)}%), match=${String(match)}`);
 
   return { match, diffPixels, diffPercentage, diffImage };
 }

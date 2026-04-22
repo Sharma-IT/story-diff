@@ -301,10 +301,15 @@ describe('captureStory', () => {
     // Case: boundary — exactly 1 retry
     vi.useFakeTimers();
     mockPage.goto = vi.fn().mockResolvedValue({ ok: () => false, status: () => 500 });
-    const promise = captureStory(mockPage as PageAdapter, 'http://h', 's', { maxRetries: 1, retryDelay: 100 }, dummyLogger);
-    promise.catch(() => {});
-    await vi.advanceTimersByTimeAsync(200);
-    await expect(promise).rejects.toThrow();
+    
+    // We start the expectation before running timers to avoid unhandled rejection
+    const promise = expect(captureStory(mockPage as PageAdapter, 'http://h', 's', { maxRetries: 1, retryDelay: 100 }, dummyLogger))
+      .rejects.toThrow();
+    
+    await vi.runAllTimersAsync();
+    await promise;
+    
+    // There are 2 calls: one for delay, one for attempt number. 
     expect(dummyLogger.warn).toHaveBeenCalledWith('Retry attempt 1 for story: s');
     vi.useRealTimers();
   });
@@ -348,9 +353,13 @@ describe('captureStory', () => {
     });
     mockPage.query = vi.fn().mockResolvedValue(mockElement);
     vi.useFakeTimers();
-    const promise = captureStory(mockPage as PageAdapter, 'http://host', 'my-story', { maxRetries: 0 }, dummyLogger);
+    
+    const promise = expect(captureStory(mockPage as PageAdapter, 'http://host', 'my-story', { maxRetries: 0 }, dummyLogger))
+      .rejects.toThrow(/zero height/);
+      
     await vi.runAllTimersAsync();
-    await expect(promise).rejects.toThrow();
+    await promise;
+    
     expect(mockPage.screenshot).toHaveBeenCalledWith(
       expect.objectContaining({ path: expect.stringContaining('my-story') }),
     );

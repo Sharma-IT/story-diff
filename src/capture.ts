@@ -56,12 +56,10 @@ export async function captureStory(
   const url = buildStoryUrl(storybookUrl, storyId, globals);
   logger?.debug(`Navigating to: ${url}`);
 
-  let lastError: Error | null = null;
-
-  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+  const runAttempt = async (attempt: number): Promise<{ readonly type: 'success'; readonly data: Buffer } | { readonly type: 'failure'; readonly error: Error }> => {
     try {
       if (attempt > 0) {
-        logger?.warn(`Retry attempt ${attempt} for story: ${storyId}`);
+        logger?.warn(`Retry attempt ${String(attempt)} for story: ${storyId}`);
       }
 
       const response = await page.goto(url, {
@@ -69,10 +67,11 @@ export async function captureStory(
         timeout: NAVIGATION_TIMEOUT,
       });
 
-      if (!response || !response.ok()) {
-        throw new Error(
-          `Navigation failed: HTTP ${response?.status() ?? 'no response'} for ${url}`,
-        );
+      if (!response?.ok()) {
+        return {
+          type: 'failure',
+          error: new Error(`Navigation failed: HTTP ${String(response?.status() ?? 'no response')} for ${url}`)
+        };
       }
 
       // Wait for page readiness
@@ -91,7 +90,7 @@ export async function captureStory(
 
       // Allow render to settle
       if (waitForTimeout > 0) {
-        logger?.debug(`Waiting ${waitForTimeout}ms for render to settle`);
+        logger?.debug(`Waiting ${String(waitForTimeout)}ms for render to settle`);
       }
       await delay(waitForTimeout);
 
@@ -99,38 +98,64 @@ export async function captureStory(
       const element = await findStoryRoot(page);
 
       if (!element) {
-        throw new Error(
-          `Could not find story root element for ${storyId}. Tried selectors: ${STORY_ROOT_SELECTORS.join(', ')}`,
-        );
+        return {
+          type: 'failure',
+          error: new Error(`Could not find story root element for ${storyId}. Tried selectors: ${STORY_ROOT_SELECTORS.join(', ')}`)
+        };
       }
 
-      await element.evaluate((el: any) => {
-        if (el && el.style) {
+      await element.evaluate((el: unknown) => {
+        if (el instanceof HTMLElement) {
+          // eslint-disable-next-line functional/immutable-data
           el.style.display = 'inline-block';
         }
       });
 
       const box = await element.boundingBox();
       if (!box || box.height === 0) {
-        await page.screenshot({ path: `e2e/snapshots/error-${storyId}-zero-height.png` }).catch(() => {});
-        throw new Error(`Story element has zero height for ${storyId}`);
+        await page.screenshot({ path: `e2e/snapshots/error-${storyId}-zero-height.png` }).catch(() => undefined);
+        return {
+          type: 'failure',
+          error: new Error(`Story element has zero height for ${storyId}`)
+        };
       }
 
-      logger?.debug(`Captured screenshot: ${box.width}x${box.height}px`);
+      logger?.debug(`Captured screenshot: ${String(box.width)}x${String(box.height)}px`);
       const screenshotData = await element.screenshot({ type: 'png', omitBackground: true });
-      return Buffer.isBuffer(screenshotData)
-        ? screenshotData
-        : Buffer.from(screenshotData);
+      return {
+        type: 'success',
+        data: Buffer.isBuffer(screenshotData) ? screenshotData : Buffer.from(screenshotData)
+      };
     } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      if (attempt < maxRetries) {
-        logger?.warn(`Capture failed, retrying in ${retryDelay}ms...`, lastError.message);
-        await delay(retryDelay);
-      }
+      return {
+        type: 'failure',
+        error: error instanceof Error ? error : new Error(String(error))
+      };
+    }
+  };
+
+  const attempts = Array.from({ length: maxRetries + 1 }, (_, i) => i);
+  
+  // We use a for-of loop to execute attempts sequentially with await
+  // This is a common pattern for retries even in functional code.
+  // eslint-disable-next-line functional/no-let
+  let lastError: Error | undefined;
+
+  for (const attempt of attempts) {
+    const result = await runAttempt(attempt);
+    if (result.type === 'success') {
+      return result.data;
+    }
+    
+    lastError = result.error;
+    if (attempt < maxRetries) {
+      logger?.warn(`Capture failed, retrying in ${String(retryDelay)}ms...`, result.error.message);
+      await delay(retryDelay);
     }
   }
 
-  logger?.error(`Failed to capture story after ${maxRetries + 1} attempts:`, lastError?.message);
-  /* v8 ignore next */
+  logger?.error(`Failed to capture story after ${String(maxRetries + 1)} attempts:`, lastError?.message);
   throw lastError ?? new Error(`Failed to capture story ${storyId}`);
 }
+
+

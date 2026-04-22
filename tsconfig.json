@@ -19,8 +19,9 @@
     "esModuleInterop": true,
     "isolatedModules": true,
     "skipLibCheck": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "allowJs": true
   },
-  "include": ["src/**/*"],
-  "exclude": ["node_modules", "dist", "e2e"]
+  "include": ["src/**/*", "e2e/**/*", "*.config.*", "*.mjs"],
+  "exclude": ["node_modules", "dist", "e2e/fixture"]
 }

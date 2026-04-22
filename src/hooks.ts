@@ -17,8 +17,9 @@ export function hookLifecycle(diff: StoryDiff, config?: boolean | LifecycleConfi
   const lifecycleConfig = typeof config === 'object' ? config : {};
   const timeout = lifecycleConfig.timeout ?? 60_000;
 
-  const beforeAllHook: LifecycleHook | undefined = lifecycleConfig.beforeAll || (globalThis as any).beforeAll;
-  const afterAllHook: LifecycleHook | undefined = lifecycleConfig.afterAll || (globalThis as any).afterAll;
+  const globals = globalThis as unknown as Record<string, unknown>;
+  const beforeAllHook = lifecycleConfig.beforeAll ?? (typeof globals.beforeAll === 'function' ? globals.beforeAll as LifecycleHook : undefined);
+  const afterAllHook = lifecycleConfig.afterAll ?? (typeof globals.afterAll === 'function' ? globals.afterAll as LifecycleHook : undefined);
 
   if (typeof beforeAllHook === 'function') {
     beforeAllHook(async () => {

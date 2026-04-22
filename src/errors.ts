@@ -23,7 +23,7 @@ export class NotInitializedError extends StoryDiffError {
  */
 export class ViewportNotFoundError extends StoryDiffError {
   constructor(viewport: string, available: string[]) {
-    super(`Unknown viewport "${viewport}". Available: ${available.join(', ')}`);
+    super(`Unknown viewport "${viewport}". Available viewports: ${available.join(', ')}`);
   }
 }
 
@@ -33,7 +33,7 @@ export class ViewportNotFoundError extends StoryDiffError {
 export class SizeMismatchError extends StoryDiffError {
   constructor(actualWidth: number, actualHeight: number, expectedWidth: number, expectedHeight: number) {
     super(
-      `Image size mismatch: actual ${actualWidth}x${actualHeight} vs expected ${expectedWidth}x${expectedHeight}`
+      `Size mismatch: actual ${String(actualWidth)}x${String(actualHeight)} vs expected ${String(expectedWidth)}x${String(expectedHeight)}`
     );
   }
 }
@@ -52,7 +52,7 @@ export class VisualRegressionError extends StoryDiffError {
     const diffInfo = diffPath ? `\nDiff image: ${diffPath}` : '';
     super(
       `Visual regression detected for "${snapshotName}".\n` +
-      `Diff: ${diffPercentage.toFixed(2)}% (${diffPixels} pixels)` +
+      `Diff: ${diffPercentage.toFixed(2)}% (${String(diffPixels)} pixels)` +
       diffInfo
     );
   }

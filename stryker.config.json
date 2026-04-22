@@ -8,7 +8,7 @@
   ],
   "testRunner": "vitest",
   "testRunnerNodeArgs": [],
-  "coverageAnalysis": "perTest",
+  "coverageAnalysis": "all",
   "mutate": [
     "src/**/*.ts",
     "!src/**/*.test.ts",

@@ -25,6 +25,7 @@ import {
 import { hookLifecycle } from './hooks.js';
 import fs from 'node:fs';
 import path from 'node:path';
+import { isRecord } from './utils.js';
 
 const DEFAULT_VIEWPORTS: Readonly<Record<string, Viewport>> = {
   mobile: { name: 'mobile', width: 393, height: 852 },
@@ -62,6 +63,8 @@ export class StoryDiff {
     this.logger.info('StoryDiff setup complete');
   }
 
+
+
   async teardown(): Promise<void> {
     if (this.browser) {
       this.logger.info('Tearing down StoryDiff...');
@@ -74,12 +77,12 @@ export class StoryDiff {
 
   async captureStory(storyId: string, options: CaptureOptions = {}): Promise<Buffer> {
     const config = await this.getConfig();
-    const page = await this.getPage();
+    const page = this.getPage();
     const captureOptions = this.mergeCaptureOptions(config, options);
     const resolvedViewport = this.resolveViewport(captureOptions.viewport, config.viewports);
 
     if (resolvedViewport) {
-      this.logger.debug(`Setting viewport to ${resolvedViewport.name} (${resolvedViewport.width}x${resolvedViewport.height})`);
+      this.logger.debug(`Setting viewport to ${resolvedViewport.name} (${String(resolvedViewport.width)}x${String(resolvedViewport.height)})`);
       await page.setViewport({
         width: resolvedViewport.width,
         height: resolvedViewport.height,
@@ -156,11 +159,15 @@ export class StoryDiff {
     const compareResult = compareImages(screenshot, existing, mergedComparison, this.logger);
     const snapshotPath = `${snapshotsDir}/${snapshotName}.png`;
 
-    let diffPath: string | null = null;
-    if (!compareResult.match && compareResult.diffImage) {
+    const diffPath = !compareResult.match && compareResult.diffImage
+      ? saveDiffOutput(snapshotsDir, snapshotName, compareResult.diffImage)
+      : null;
+
+    if (diffPath) {
       this.logger.warn(`Visual difference detected: ${snapshotName} (${compareResult.diffPercentage.toFixed(2)}%)`);
-      diffPath = saveDiffOutput(snapshotsDir, snapshotName, compareResult.diffImage);
       this.logger.info(`Diff image saved: ${diffPath}`);
+    } else if (!compareResult.match) {
+      this.logger.warn(`Visual difference detected: ${snapshotName} (${compareResult.diffPercentage.toFixed(2)}%)`);
     } else {
       this.logger.debug(`Snapshot matches baseline: ${snapshotName}`);
     }
@@ -224,30 +231,31 @@ export class StoryDiff {
     comparison: ComparisonConfig,
   ): Promise<ComparisonResult> {
     const config = await this.getConfig();
-    const pageAdapter = await this.getPage();
+    const pageAdapter = this.getPage();
     
-    // Ensure navigation and readiness
-    // We call captureStory but we'll re-capture using native method
-    // This ensures all the "Storybook logic" (globals, wait for selector, etc) is executed
     await this.captureStory(storyId, options);
 
-    const playwrightPage = pageAdapter.getUnderlyingObject() as any;
+    const playwrightPage = pageAdapter.getUnderlyingObject() as {
+      readonly screenshot: (options: Record<string, unknown>) => Promise<Buffer>;
+    };
     const { expect, test } = await import('@playwright/test').catch(() => {
       throw new Error("Native Playwright snapshots require '@playwright/test' to be installed.");
     });
 
-    let testInfo: any;
-    try {
-      testInfo = test.info();
-    } catch {
-      // Not running in Playwright Test runner
-    }
+    const testInfo = ((): unknown => {
+      try {
+        return test.info();
+      } catch {
+        return undefined;
+      }
+    })();
 
     const snapshotName = `${options.snapshotName}.png`;
-    const snapshotPath = testInfo ? testInfo.snapshotPath(snapshotName) : path.join(config.snapshotsDir, snapshotName);
+    const snapshotPath = isRecord(testInfo) && typeof testInfo.snapshotPath === 'function' 
+      ? (testInfo.snapshotPath as (name: string) => string)(snapshotName)
+      : path.join(config.snapshotsDir, snapshotName);
 
-    // Map our comparison config to Playwright's toHaveScreenshot options
-    const pwOptions: any = {
+    const pwOptions: Record<string, unknown> = {
       animations: 'disabled',
       caret: 'hide',
       scale: 'css',
@@ -263,8 +271,6 @@ export class StoryDiff {
     }
 
     try {
-      // If we're in a Playwright test and the snapshot is missing, and we're NOT failing on missing baseline,
-      // we take the screenshot manually to avoid Playwright's expect failing the test.
       if (testInfo && snapshotPath && !fs.existsSync(snapshotPath) && config.failOnMissingBaseline === false) {
         this.logger.info(`Creating missing native baseline: ${snapshotPath}`);
         await playwrightPage.screenshot({ path: snapshotPath, ...pwOptions });
@@ -280,10 +286,8 @@ export class StoryDiff {
         };
       }
 
-      // Use the page or element for snapshotting
-      // Use only the filename, Playwright will use its default snapshot directory
-      // which is usually next to the test file.
-      await expect(playwrightPage).toHaveScreenshot(snapshotName, pwOptions);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+      await (expect(playwrightPage) as any).toHaveScreenshot(snapshotName, pwOptions);
 
       return {
         match: true,
@@ -295,9 +299,9 @@ export class StoryDiff {
         snapshotPath,
         diffPath: null,
       };
-    } catch (error: any) {
-      /* v8 ignore next */
-      const errorMessage = error.message || String(error);
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+
       const isBaselineMissing = /snapshot.*doesn't.*exist|writing.*actual|no.*snapshot|snapshot.*not.*found|missing.*baseline/i.test(errorMessage);
       
       if (isBaselineMissing) {
@@ -313,27 +317,24 @@ export class StoryDiff {
         };
       }
 
-      // Extract details from Playwright error if possible, or just re-throw as VisualRegressionError
-      this.logger.error(`Native Playwright snapshot failed: ${error.message}`);
+      this.logger.error(`Native Playwright snapshot failed: ${errorMessage}`);
       
       throw new VisualRegressionError(
         options.snapshotName,
-        100, // We don't have exact metrics easily from the error object
+        100,
         0,
         snapshotPath,
-        null // Playwright saves diffs elsewhere by default
+        null
       );
     }
   }
 
   async runAll(tests?: readonly StoryVisualTest[]): Promise<readonly BatchResult[]> {
     const config = await this.getConfig();
-    /* v8 ignore next */
     const results: BatchResult[] = [];
-    /* v8 ignore next */
     const testsToRun = tests ?? config.tests ?? [];
     
-    this.logger.info(`Running batch tests for ${testsToRun.length} component(s)`);
+    this.logger.info(`Running batch tests for ${String(testsToRun.length)} component(s)`);
 
     for (const test of testsToRun) {
       const viewports = test.viewports ?? ['desktop'];
@@ -359,7 +360,7 @@ export class StoryDiff {
       }
     }
     
-    this.logger.info(`Batch tests complete: ${results.length} snapshot(s) processed`);
+    this.logger.info(`Batch tests complete: ${String(results.length)} snapshot(s) processed`);
 
     return results;
   }
@@ -382,16 +383,16 @@ export class StoryDiff {
     return resolved;
   }
 
-  private async getPage(): Promise<PageAdapter> {
+  private getPage(): PageAdapter {
     if (!this.page) {
       throw new NotInitializedError();
     }
     return this.page;
   }
 
-  private async getConfig(): Promise<StoryDiffConfig & { storybookUrl: string; snapshotsDir: string }> {
-    if (this.config && this.config.storybookUrl && this.config.snapshotsDir) {
-      return this.config as StoryDiffConfig & { storybookUrl: string; snapshotsDir: string };
+  private async getConfig(): Promise<StoryDiffConfig & { readonly storybookUrl: string; readonly snapshotsDir: string }> {
+    if (this.config?.storybookUrl && this.config.snapshotsDir) {
+      return this.config as StoryDiffConfig & { readonly storybookUrl: string; readonly snapshotsDir: string };
     }
 
     const resolved = await resolveStoryDiffConfig(this.config ?? undefined);
@@ -425,12 +426,13 @@ function buildSnapshotName(
   const comp = componentName.toLowerCase();
 
   // Remove component name from story to avoid duplication like "button-primary-button"
-  let cleanStory = story;
-  if (story.startsWith(`${comp}-`)) {
-    cleanStory = story.slice(comp.length + 1);
-  } else if (story.endsWith(`-${comp}`)) {
-    cleanStory = story.slice(0, -(comp.length + 1));
-  }
+  const cleanStory = story.startsWith(`${comp}-`)
+    ? story.slice(comp.length + 1)
+    : story.endsWith(`-${comp}`)
+      ? story.slice(0, -(comp.length + 1))
+      : story;
 
   return `${comp}-${cleanStory}-${viewport}`;
 }
+
+

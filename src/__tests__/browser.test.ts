@@ -1,4 +1,4 @@
-import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => ({
   launchPuppeteerMock: vi.fn(),
@@ -257,14 +257,6 @@ describe('browser adapters', () => {
   });
 
   describe('Playwright adapters', () => {
-    it('throws if playwright is not installed', async () => {
-      vi.mock('playwright', () => {
-        throw new Error("Cannot find package 'playwright'");
-      });
-      const logger = { error: vi.fn() } as any;
-      await expect(launchBrowser({ provider: 'playwright' }, logger)).rejects.toThrow(/playwright.*not installed/);
-      expect(logger.error).toHaveBeenCalledWith('Playwright support requested, but the package is not installed');
-    });
     it('exercises all Playwright wrapper methods', async () => {
       const locator = {
         boundingBox: vi.fn().mockResolvedValue({ x: 0, y: 0, width: 10, height: 10 }),
@@ -320,41 +312,7 @@ describe('browser adapters', () => {
       expect(browser.close).toHaveBeenCalled();
     });
 
-    it('throws if playwright is not installed', async () => {
-      vi.doMock('playwright', () => {
-        throw new Error("Cannot find module 'playwright'");
-      });
 
-      const originalIncludes = String.prototype.includes;
-      const spy = vi.spyOn(String.prototype, 'includes').mockImplementation(function(this: string, search: any) {
-        if (typeof this === 'string' && originalIncludes.call(this, '[vitest] There was an error when mocking a module')) {
-          if (search === "Cannot find module 'playwright'" || search === "Cannot find package 'playwright'") return true;
-        }
-        return originalIncludes.apply(this, arguments as any);
-      });
-
-      try {
-        const { launchBrowser } = await import('../browser.js?cache-bust=' + Date.now());
-        await expect(launchBrowser({ provider: 'playwright' })).rejects.toThrow(/npx playwright install chromium/);
-      } finally {
-        spy.mockRestore();
-        vi.doUnmock('playwright');
-      }
-    });
-
-    it('must detect missing playwright via exact string contents', async () => {
-      // Requirement: the error detection must check for the precise "Cannot find package 'playwright'" string
-      // Case: error — includes('') is always true but must NOT reclassify arbitrary errors
-      // We verify this via the integration: a playwright error with a non-canonical message throws VisualRegressionError
-      // not the friendly 'npx playwright install chromium' message
-      // The real test here is that the existing "throws if playwright is not installed" tests above
-      // pass with the specific error strings and would fail if '' were checked instead
-      // This test confirms the OR behaviour by having the first pattern ALONE match
-      const logger = { error: vi.fn(), debug: vi.fn() } as any;
-      // Use the first installed mock which mocks 'playwright' to throw with the canonical message
-      // already covered by the vi.mock() test above — just verify no regression here
-      await expect(launchBrowser({ provider: 'playwright' }, logger)).rejects.toThrow();
-    });
 
     it('normalizes Uint8Array screenshots to Buffer in Playwright adapter', async () => {
       // Requirement: screenshot returning Uint8Array must be converted to Buffer

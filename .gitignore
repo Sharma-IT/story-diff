@@ -11,6 +11,11 @@ e2e/fixture/storybook-static/
 e2e/snapshots/
 /e2e/playwright/visual.e2e.spec.ts-snapshots
 /test-results
+/.stryker-tmp
+reports/mutation/mutation.html
+*.txt
+cfg-root-*
+*.log
 
 # OS
 .DS_Store
@@ -22,5 +27,3 @@ Thumbs.db
 *.swp
 *.swo
 /.npm
-/.stryker-tmp
-reports/mutation/mutation.html

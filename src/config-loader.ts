@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url';
 
 import { ConfigNotFoundError, InvalidConfigError } from './errors.js';
 import type { StoryDiffConfig } from './story-diff.types.js';
+import { isRecord } from './utils.js';
 
 const SUPPORTED_CONFIG_FILES = [
   'story-diff.config.mjs',
@@ -16,20 +17,20 @@ const SUPPORTED_CONFIG_FILES = [
   'story-diff.json',
 ] as const;
 
-let cachedConfigPromise: Promise<StoryDiffConfig> | null = null;
+
 
 export async function resolveStoryDiffConfig(
   config?: StoryDiffConfig,
 ): Promise<StoryDiffConfig> {
-  if (config && config.storybookUrl && config.snapshotsDir) {
-    return config as StoryDiffConfig;
+  if (config?.storybookUrl && config.snapshotsDir) {
+    return config;
   }
 
   return loadDiscoveredStoryDiffConfig(config?.cwd);
 }
 
 async function loadDiscoveredStoryDiffConfig(cwd?: string): Promise<StoryDiffConfig> {
-  const configPath = findStoryDiffConfig(cwd || process.cwd());
+  const configPath = findStoryDiffConfig(cwd ?? process.cwd());
 
   if (!configPath) {
     throw new ConfigNotFoundError(SUPPORTED_CONFIG_FILES);
@@ -40,31 +41,34 @@ async function loadDiscoveredStoryDiffConfig(cwd?: string): Promise<StoryDiffCon
 }
 
 function findStoryDiffConfig(startDirectory: string): string | null {
-  let currentDirectory = path.resolve(startDirectory);
+  const getSearchDirectories = (dir: string): readonly string[] => {
+    const resolveParents = (current: string, acc: readonly string[]): readonly string[] => {
+      const parent = path.dirname(current);
+      return parent === current ? [...acc, current] : resolveParents(parent, [...acc, current]);
+    };
+    return resolveParents(path.resolve(dir), []);
+  };
 
-  while (true) {
+  const searchDirectories = getSearchDirectories(startDirectory);
+
+  for (const currentDirectory of searchDirectories) {
     for (const fileName of SUPPORTED_CONFIG_FILES) {
       const candidatePath = path.join(currentDirectory, fileName);
       if (fs.existsSync(candidatePath)) {
         return candidatePath;
       }
     }
-
-    const parentDirectory = path.dirname(currentDirectory);
-    if (parentDirectory === currentDirectory) {
-      return null;
-    }
-
-    currentDirectory = parentDirectory;
   }
+
+  return null;
 }
 
 async function loadConfigFile(filePath: string): Promise<unknown> {
   if (filePath.endsWith('.json')) {
-    return JSON.parse(fs.readFileSync(filePath, 'utf8')) as unknown;
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
   }
-
-  const importedConfig = await import(pathToFileURL(filePath).href);
+ 
+  const importedConfig = await import(pathToFileURL(filePath).href) as Record<string, unknown>;
   return importedConfig.default ?? importedConfig;
 }
 
@@ -92,9 +96,7 @@ function normaliseConfig(configValue: unknown, filePath: string): StoryDiffConfi
     ...configValue,
     storybookUrl,
     snapshotsDir: resolvedSnapshotsDir,
-  } as StoryDiffConfig;
+  };
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
+

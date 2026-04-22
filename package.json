@@ -26,7 +26,8 @@
     "test:e2e:vitest": "vitest run -c e2e/vitest/vitest.config.ts",
     "test:e2e:jest": "NODE_OPTIONS='--experimental-vm-modules --no-warnings' jest --config e2e/jest/jest.config.ts",
     "test:e2e:playwright": "playwright test -c e2e/playwright/playwright.config.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint ."
   },
   "keywords": [
     "storybook",
@@ -57,6 +58,7 @@
     "puppeteer": "^24.41.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.59.1",
     "@stryker-mutator/core": "^9.6.1",
     "@stryker-mutator/vitest-runner": "^9.6.1",
@@ -66,11 +68,14 @@
     "@types/pngjs": "^6.0.5",
     "@vitest/coverage-v8": "^3.2.4",
     "concurrently": "^9.2.1",
+    "eslint": "^10.2.1",
+    "eslint-plugin-functional": "^9.0.4",
     "jest": "^30.3.0",
     "playwright": "^1.59.1",
     "ts-jest": "^29.4.9",
     "ts-node": "^10.9.2",
     "typescript": "^5.8.0",
+    "typescript-eslint": "^8.59.0",
     "vitest": "^3.1.0",
     "wait-on": "^9.0.5"
   },

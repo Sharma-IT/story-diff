@@ -14,18 +14,14 @@ export function buildStoryUrl(
   globals?: Readonly<Record<string, string>>,
 ): string {
   const base = storybookUrl.replace(/\/+$/, '');
-  const params = new URLSearchParams();
-
-  params.set('id', storyId);
-  params.set('viewMode', 'story');
-
-  if (globals && Object.keys(globals).length > 0) {
-    const globalsValue = Object.entries(globals)
-      .map(([key, value]) => `${key}:${value}`)
-      .join(';');
-    params.set('globals', globalsValue);
-  }
-
+  const baseParams = { id: storyId, viewMode: 'story' };
+ 
+  const globalsParam = globals && Object.keys(globals).length > 0
+    ? { globals: Object.entries(globals).map(([key, value]) => `${key}:${value}`).join(';') }
+    : {};
+ 
+  const params = new URLSearchParams({ ...baseParams, ...globalsParam } as Record<string, string>);
+ 
   return `${base}/iframe.html?${params.toString()}`;
 }
 
@@ -61,26 +57,26 @@ export async function waitForStorybookReady(
   }
 
   if (!response.ok()) {
-    logger?.error(`Storybook returned HTTP ${response.status()}`);
-    throw new StorybookConnectionError(base, `HTTP ${response.status()}`);
+    logger?.error(`Storybook returned HTTP ${String(response.status())}`);
+    throw new StorybookConnectionError(base, `HTTP ${String(response.status())}`);
   }
 
   // Wait for any known Storybook UI element to appear
-  let found = false;
-
-  for (const selector of STORYBOOK_SELECTORS) {
-    try {
-      logger?.debug(`Waiting for Storybook selector: ${selector}`);
-      await page.waitForSelector(selector, { timeout: 15_000 });
-      found = true;
-      logger?.debug(`Found Storybook UI element: ${selector}`);
-      break;
-    } catch {
-      // Try next selector
+  const foundSelector = await (async (): Promise<string | null> => {
+    for (const selector of STORYBOOK_SELECTORS) {
+      try {
+        logger?.debug(`Waiting for Storybook selector: ${selector}`);
+        await page.waitForSelector(selector, { timeout: 15_000 });
+        logger?.debug(`Found Storybook UI element: ${selector}`);
+        return selector;
+      } catch {
+        // Try next selector
+      }
     }
-  }
+    return null;
+  })();
 
-  if (!found) {
+  if (!foundSelector) {
     logger?.error('Storybook UI did not load - no expected selectors found');
     throw new StorybookConnectionError(
       base,

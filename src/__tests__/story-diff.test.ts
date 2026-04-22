@@ -755,7 +755,16 @@ describe('StoryDiff - Root Config Autoload', () => {
 
     await diff.teardown();
     fs.rmSync(projectDir, { recursive: true, force: true });
-    vi.doUnmock('@playwright/test');
+    
+    // Restore the hoist mock for subsequent tests!
+    vi.doMock('@playwright/test', () => ({
+      expect: mocks.playwrightExpectMock,
+      test: {
+        info: vi.fn().mockImplementation(() => {
+          throw new Error('No test info');
+        }),
+      },
+    }));
   });
 });
 
@@ -769,6 +778,63 @@ describe('StoryDiff - Mutation Coverage', () => {
   afterEach(async () => {
     fs.rmSync(tempDir, { recursive: true, force: true });
     vi.clearAllMocks();
+  });
+
+  it('does NOT call hookLifecycle when autoLifecycle is absent or false', async () => {
+    const { hookLifecycle } = await import('../hooks.js');
+    (hookLifecycle as any).mockClear();
+    // Test the truthiness and optional chaining mutants for config?.autoLifecycle
+    new StoryDiff(); // undefined config
+    new StoryDiff({ autoLifecycle: false } as any);
+    expect(hookLifecycle).not.toHaveBeenCalled();
+  });
+
+  it('instantiates logger cleanly even with undefined config', async () => {
+    // Kills OptionalChaining mutant: config?.logger -> config.logger
+    const diff = new StoryDiff(); 
+    expect((diff as any).logger).toBeDefined();
+  });
+
+  it('logs precise strings across lifecycle', async () => {
+    // Requirement: Must log exact progress strings locally so mutants replace with '' fail
+    const customLogger = vi.fn();
+    const diff = new StoryDiff({ 
+      storybookUrl: 'http://foo', 
+      snapshotsDir: tempDir, 
+      logger: { level: 'debug', customLogger }
+    });
+    
+    // Test setup logs
+    await diff.setup();
+    expect(customLogger).toHaveBeenCalledWith('info', 'Setting up StoryDiff...');
+    expect(customLogger).toHaveBeenCalledWith('debug', 'Browser config:', undefined);
+    expect(customLogger).toHaveBeenCalledWith('info', 'Connecting to Storybook at http://foo');
+    expect(customLogger).toHaveBeenCalledWith('info', 'StoryDiff setup complete');
+
+    // Test capture logs
+    const mockPage = { setViewport: vi.fn(), getUnderlyingObject: vi.fn() };
+    (diff as any).page = mockPage;
+    await diff.captureStory('my-id', { viewport: 'mobile' });
+    expect(customLogger).toHaveBeenCalledWith('debug', 'Setting viewport to mobile (393x852)');
+    expect(customLogger).toHaveBeenCalledWith('info', 'Capturing story: my-id');
+
+    // Make sure we have a browser active before teardown so it prints the log
+    (diff as any).browser = { close: vi.fn() };
+    expect((diff as any).browser).toBeTruthy();
+    
+    // Test teardown logs
+    await diff.teardown();
+    expect(customLogger).toHaveBeenCalledWith('info', 'Tearing down StoryDiff...');
+    expect(customLogger).toHaveBeenCalledWith('info', 'StoryDiff teardown complete');
+  });
+
+  it('teardown does not call closeBrowser if browser is null', async () => {
+    // Tests: if (this.browser) mutated to if (true)
+    const { closeBrowser } = await import('../browser.js');
+    (closeBrowser as any).mockClear();
+    const diff = new StoryDiff();
+    await diff.teardown();
+    expect(closeBrowser).not.toHaveBeenCalled();
   });
 
   it('DEFAULT_VIEWPORTS mobile has correct name, width, height', async () => {
@@ -813,8 +879,6 @@ describe('StoryDiff - Mutation Coverage', () => {
     const mockPage = { setViewport: vi.fn(), getUnderlyingObject: vi.fn() };
     (diff as any).page = mockPage;
     await diff.captureStory('foo', { viewport: 'mobile' });
-    // The debug log uses the name field
-    const { createPage } = await import('../browser.js');
     // We just verify setViewport was called with the exact dimensions (not empty object)
     expect(mockPage.setViewport).toHaveBeenCalledWith(expect.objectContaining({ width: 393 }));
     await diff.teardown();
@@ -936,7 +1000,6 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('assertNativePlaywrightSnapshot with baseline missing error: baselineCreated=true, baselineMissing=false', async () => {
-    // Requirement: on "snapshot created" error: baselineCreated:true, baselineMissing:false (not true/true)
     const diff = new StoryDiff({
       storybookUrl: 'http://localhost',
       snapshotsDir: tempDir,
@@ -1065,6 +1128,51 @@ describe('StoryDiff - Mutation Coverage', () => {
     await diff.teardown();
   });
 
+  it('does NOT use native snapshot if provider is not playwright (even if requested)', async () => {
+    const file = path.join(tempDir, 'no-pw-native.png');
+    fs.writeFileSync(file, Buffer.from('baseline'));
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost',
+      snapshotsDir: tempDir,
+      browser: { provider: 'puppeteer' }, // NOT playwright
+      comparison: { useNativeSnapshot: true }, // BUT requested native!
+    });
+    await diff.setup();
+    const { compareImages } = await import('../compare.js');
+    (compareImages as any).mockReturnValueOnce({ match: true, diffPixels: 0, diffPercentage: 0, diffImage: null });
+    
+    const result = await diff.assertMatchesBaseline('s', { snapshotName: 'no-pw-native' });
+    expect(result.match).toBe(true);
+    expect(compareImages).toHaveBeenCalled();
+    expect(mocks.playwrightExpectMock).not.toHaveBeenCalled();
+    await diff.teardown();
+  });
+
+  it('passes precisely correct options to playwright toHaveScreenshot (and logs native)', async () => {
+    const customLogger = vi.fn();
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost',
+      snapshotsDir: tempDir,
+      browser: { provider: 'playwright' },
+      comparison: { useNativeSnapshot: true, failureThreshold: 0.1 },
+      logger: { level: 'debug', customLogger }
+    });
+    await diff.setup();
+    const toHaveScreenshotMock = vi.fn().mockResolvedValue(undefined);
+    mocks.playwrightExpectMock.mockReturnValue({ toHaveScreenshot: toHaveScreenshotMock });
+    await diff.assertMatchesBaseline('s', { snapshotName: 'pw-opts' });
+    
+    expect(toHaveScreenshotMock).toHaveBeenCalledWith('pw-opts.png', expect.objectContaining({
+      animations: 'disabled',
+      caret: 'hide',
+      scale: 'css',
+      maxDiffPixelRatio: 0.001,
+      threshold: 0.1,
+    }));
+    expect(customLogger).toHaveBeenCalledWith('info', 'Using native Playwright snapshot for: pw-opts');
+    await diff.teardown();
+  });
+
   it('assertNativePlaywrightSnapshot: useNativeSnapshot=false skips native path', async () => {
     // Requirement: the && condition requires BOTH useNativeSnapshot AND provider=playwright
     // Mutant: || would allow either condition to trigger native snapshot
@@ -1091,21 +1199,27 @@ describe('StoryDiff - Mutation Coverage', () => {
     // Mutant: empty block {} would skip saveDiffOutput
     const baseline = path.join(tempDir, 'diff-test.png');
     fs.writeFileSync(baseline, Buffer.from('baseline-data'));
+    const customLogger = vi.fn();
     const diff = new StoryDiff({
       storybookUrl: 'http://localhost',
       snapshotsDir: tempDir,
+      logger: { level: 'debug', customLogger }
     });
     await diff.setup();
     const { compareImages } = await import('../compare.js');
     (compareImages as any).mockReturnValueOnce({
       match: false,
       diffPixels: 50,
-      diffPercentage: 5,
+      diffPercentage: 5.5,
       diffImage: Buffer.from('diff-data'),
     });
     await expect(diff.assertMatchesBaseline('s', { snapshotName: 'diff-test' }))
       .rejects.toThrow(/Visual regression/);
-    // The diff was attempted - the block ran
+    
+    // Check that we got the exact logged strings
+    expect(customLogger).toHaveBeenCalledWith('debug', 'Comparing with baseline: diff-test');
+    expect(customLogger).toHaveBeenCalledWith('warn', 'Visual difference detected: diff-test (5.50%)');
+    expect(customLogger).toHaveBeenCalledWith('info', expect.stringContaining('Diff image saved:'));
     await diff.teardown();
   });
 
@@ -1114,9 +1228,11 @@ describe('StoryDiff - Mutation Coverage', () => {
     // Mutant: if (compareResult.match && ...) would incorrectly trigger on a match
     const baseline = path.join(tempDir, 'neg-test.png');
     fs.writeFileSync(baseline, Buffer.from('baseline-data'));
+    const customLogger = vi.fn();
     const diff = new StoryDiff({
       storybookUrl: 'http://localhost',
       snapshotsDir: tempDir,
+      logger: { level: 'debug', customLogger }
     });
     await diff.setup();
     const { compareImages } = await import('../compare.js');
@@ -1124,10 +1240,54 @@ describe('StoryDiff - Mutation Coverage', () => {
       match: true,
       diffPixels: 0,
       diffPercentage: 0,
-      diffImage: null,
+      diffImage: Buffer.from('diff-data'), // simulate mutant where diffImage exists but match=true
     });
     const result = await diff.assertMatchesBaseline('s', { snapshotName: 'neg-test' });
     expect(result.match).toBe(true);
+    expect(customLogger).toHaveBeenCalledWith('debug', 'Snapshot matches baseline: neg-test');
     await diff.teardown();
+  });
+
+  it('logs baseline missing/creation across lifecycle', async () => {
+    const customLogger = vi.fn();
+    const diff = new StoryDiff({ 
+      storybookUrl: 'http://foo', 
+      snapshotsDir: tempDir, 
+      failOnMissingBaseline: true,
+      logger: { level: 'debug', customLogger }
+    });
+    await diff.setup();
+    const mockPage = { setViewport: vi.fn(), getUnderlyingObject: vi.fn() };
+    (diff as any).page = mockPage;
+
+    // missing baseline log
+    await expect(diff.assertMatchesBaseline('s', { snapshotName: 'no-base-exists' })).rejects.toThrow();
+    expect(customLogger).toHaveBeenCalledWith('warn', 'Baseline missing: no-base-exists');
+    await diff.teardown();
+
+    // updating baseline log
+    const diffUpdate = new StoryDiff({
+      storybookUrl: 'http://foo',
+      snapshotsDir: tempDir,
+      update: true,
+      logger: { level: 'debug', customLogger }
+    });
+    await diffUpdate.setup();
+    (diffUpdate as any).page = mockPage;
+    await diffUpdate.assertMatchesBaseline('s', { snapshotName: 'update-base' });
+    expect(customLogger).toHaveBeenCalledWith('info', 'Updating baseline: update-base');
+    await diffUpdate.teardown();
+
+    const diff2 = new StoryDiff({
+      storybookUrl: 'http://foo',
+      snapshotsDir: tempDir,
+      failOnMissingBaseline: false, // create new baseline
+      logger: { level: 'debug', customLogger }
+    });
+    await diff2.setup();
+    (diff2 as any).page = mockPage;
+    await diff2.assertMatchesBaseline('s', { snapshotName: 'brand-new' });
+    expect(customLogger).toHaveBeenCalledWith('info', 'Creating new baseline: brand-new');
+    await diff2.teardown();
   });
 });
