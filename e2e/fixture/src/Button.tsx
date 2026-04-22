@@ -1,4 +1,3 @@
-
 export const Button = ({
   primary = false,
   label,

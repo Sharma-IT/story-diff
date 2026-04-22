@@ -1,6 +1,12 @@
 import path from 'node:path';
 
-import { StoryDiff, VisualRegressionError, SizeMismatchError, BaselineMissingError, NotInitializedError } from '../../src/index.js';
+import {
+  StoryDiff,
+  VisualRegressionError,
+  SizeMismatchError,
+  BaselineMissingError,
+  NotInitializedError,
+} from '../../src/index.js';
 import type { BatchResult } from '../../src/story-diff.types.js';
 
 describe('Story Diff (Jest E2E)', () => {
@@ -70,7 +76,7 @@ describe('Story Diff (Jest E2E)', () => {
     expect(results).toHaveLength(2);
     expect(results[0]!.result.match).toBe(true);
     expect(results[1]!.result.match).toBe(true);
-    
+
     // Check naming convention
     const names = results.map((r: BatchResult) => r.snapshotName).sort();
     expect(names).toEqual(['button-secondary-mobile', 'button-secondary-tablet']);
@@ -85,7 +91,7 @@ describe('Story Diff (Jest E2E)', () => {
     const promise = diff.assertMatchesBaseline('components-button--primary', {
       snapshotName: 'button-secondary-desktop-size-jest',
       viewport: 'desktop',
-      comparison: { allowSizeMismatch: true }
+      comparison: { allowSizeMismatch: true },
     });
 
     await expect(promise).rejects.toThrow(VisualRegressionError);

@@ -28,7 +28,9 @@ export function compareImages(
   const actualPng = PNG.sync.read(actual);
   const expectedPng = PNG.sync.read(expected);
 
-  logger?.debug(`Comparing images: actual=${String(actualPng.width)}x${String(actualPng.height)}, expected=${String(expectedPng.width)}x${String(expectedPng.height)}`);
+  logger?.debug(
+    `Comparing images: actual=${String(actualPng.width)}x${String(actualPng.height)}, expected=${String(expectedPng.width)}x${String(expectedPng.height)}`,
+  );
 
   const hasSizeMismatch =
     actualPng.width !== expectedPng.width || actualPng.height !== expectedPng.height;
@@ -39,7 +41,7 @@ export function compareImages(
       actualPng.width,
       actualPng.height,
       expectedPng.width,
-      expectedPng.height
+      expectedPng.height,
     );
   }
 
@@ -68,14 +70,9 @@ export function compareImages(
   const totalPixels = width * height;
   const diffPng = new PNG({ width, height });
 
-  const diffPixels = pixelmatch(
-    actualPng.data,
-    expectedPng.data,
-    diffPng.data,
-    width,
-    height,
-    { threshold },
-  );
+  const diffPixels = pixelmatch(actualPng.data, expectedPng.data, diffPng.data, width, height, {
+    threshold,
+  });
 
   const diffPercentage = totalPixels > 0 ? (diffPixels / totalPixels) * 100 : 0;
 
@@ -87,7 +84,9 @@ export function compareImages(
   const match = diffPixels === 0 || isWithinThreshold;
   const diffImage = diffPixels > 0 ? PNG.sync.write(diffPng) : null;
 
-  logger?.debug(`Comparison result: ${String(diffPixels)} pixels differ (${diffPercentage.toFixed(2)}%), match=${String(match)}`);
+  logger?.debug(
+    `Comparison result: ${String(diffPixels)} pixels differ (${diffPercentage.toFixed(2)}%), match=${String(match)}`,
+  );
 
   return { match, diffPixels, diffPercentage, diffImage };
 }

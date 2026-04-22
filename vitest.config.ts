@@ -9,6 +9,6 @@ export default defineConfig({
       include: ['src/**/*.ts'],
       exclude: ['src/**/*.test.ts', 'src/**/*.types.ts', 'src/index.ts'],
       reporter: ['text', 'html', 'json'],
-    }
+    },
   },
 });

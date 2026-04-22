@@ -3,7 +3,6 @@ import { useEffect, useState } from 'react';
 export const AsyncComponent = ({ delay = 1000 }: { delay?: number }) => {
   const [ready, setReady] = useState(false);
 
-
   useEffect(() => {
     const timer = setTimeout(() => setReady(true), delay);
     return () => clearTimeout(timer);

@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+.stryker-tmp/
+storybook-static/
+package-lock.json
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.svg
+*.ico

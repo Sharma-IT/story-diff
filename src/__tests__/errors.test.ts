@@ -29,20 +29,30 @@ describe('Errors', () => {
   });
 
   it('instantiates VisualRegressionError with and without diff image', () => {
-    const errorWithDiff = new VisualRegressionError('snap1', 10, 500, '/path/to/snap', '/path/to/diff');
+    const errorWithDiff = new VisualRegressionError(
+      'snap1',
+      10,
+      500,
+      '/path/to/snap',
+      '/path/to/diff',
+    );
     expect(errorWithDiff.message).toContain('snap1');
     expect(errorWithDiff.message).toContain('10.00%');
     expect(errorWithDiff.message).toContain('Diff image: /path/to/diff');
 
     const errorWithoutDiff = new VisualRegressionError('snap2', 5, 200, '/path/to/snap2', null);
-    expect(errorWithoutDiff.message).toBe('Visual regression detected for "snap2".\nDiff: 5.00% (200 pixels)');
+    expect(errorWithoutDiff.message).toBe(
+      'Visual regression detected for "snap2".\nDiff: 5.00% (200 pixels)',
+    );
     expect(errorWithoutDiff.message).not.toContain('Diff image:');
     expect(errorWithoutDiff.name).toBe('VisualRegressionError');
   });
 
   it('instantiates BaselineMissingError', () => {
     const error = new BaselineMissingError('snap4', '/path/to/baseline.png');
-    expect(error.message).toBe('Baseline image missing for "snap4". Expected at /path/to/baseline.png.');
+    expect(error.message).toBe(
+      'Baseline image missing for "snap4". Expected at /path/to/baseline.png.',
+    );
     expect(error.name).toBe('BaselineMissingError');
   });
 

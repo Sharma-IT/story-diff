@@ -31,9 +31,14 @@ export class ViewportNotFoundError extends StoryDiffError {
  * Thrown when images have different dimensions and allowSizeMismatch is false.
  */
 export class SizeMismatchError extends StoryDiffError {
-  constructor(actualWidth: number, actualHeight: number, expectedWidth: number, expectedHeight: number) {
+  constructor(
+    actualWidth: number,
+    actualHeight: number,
+    expectedWidth: number,
+    expectedHeight: number,
+  ) {
     super(
-      `Size mismatch: actual ${String(actualWidth)}x${String(actualHeight)} vs expected ${String(expectedWidth)}x${String(expectedHeight)}`
+      `Size mismatch: actual ${String(actualWidth)}x${String(actualHeight)} vs expected ${String(expectedWidth)}x${String(expectedHeight)}`,
     );
   }
 }
@@ -47,13 +52,13 @@ export class VisualRegressionError extends StoryDiffError {
     public readonly diffPercentage: number,
     public readonly diffPixels: number,
     public readonly snapshotPath: string,
-    public readonly diffPath: string | null
+    public readonly diffPath: string | null,
   ) {
     const diffInfo = diffPath ? `\nDiff image: ${diffPath}` : '';
     super(
       `Visual regression detected for "${snapshotName}".\n` +
-      `Diff: ${diffPercentage.toFixed(2)}% (${String(diffPixels)} pixels)` +
-      diffInfo
+        `Diff: ${diffPercentage.toFixed(2)}% (${String(diffPixels)} pixels)` +
+        diffInfo,
     );
   }
 }
@@ -62,7 +67,10 @@ export class VisualRegressionError extends StoryDiffError {
  * Thrown when a baseline image is missing and failOnMissingBaseline is true.
  */
 export class BaselineMissingError extends StoryDiffError {
-  constructor(public readonly snapshotName: string, public readonly snapshotPath: string) {
+  constructor(
+    public readonly snapshotName: string,
+    public readonly snapshotPath: string,
+  ) {
     super(`Baseline image missing for "${snapshotName}". Expected at ${snapshotPath}.`);
   }
 }
@@ -72,7 +80,7 @@ export class BaselineMissingError extends StoryDiffError {
  */
 export class StorybookConnectionError extends StoryDiffError {
   constructor(url: string, detail?: string) {
-    const message = detail 
+    const message = detail
       ? `Failed to connect to Storybook at ${url}: ${detail}`
       : `Failed to connect to Storybook at ${url}`;
     super(message);
@@ -85,7 +93,7 @@ export class StorybookConnectionError extends StoryDiffError {
 export class ConfigNotFoundError extends StoryDiffError {
   constructor(fileNames: readonly string[]) {
     super(
-      `StoryDiff configuration not found. Pass config to the constructor or add one of: ${fileNames.join(', ')}.`
+      `StoryDiff configuration not found. Pass config to the constructor or add one of: ${fileNames.join(', ')}.`,
     );
   }
 }

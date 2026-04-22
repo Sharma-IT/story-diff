@@ -17,11 +17,7 @@ const SUPPORTED_CONFIG_FILES = [
   'story-diff.json',
 ] as const;
 
-
-
-export async function resolveStoryDiffConfig(
-  config?: StoryDiffConfig,
-): Promise<StoryDiffConfig> {
+export async function resolveStoryDiffConfig(config?: StoryDiffConfig): Promise<StoryDiffConfig> {
   if (config?.storybookUrl && config.snapshotsDir) {
     return config;
   }
@@ -67,8 +63,8 @@ async function loadConfigFile(filePath: string): Promise<unknown> {
   if (filePath.endsWith('.json')) {
     return JSON.parse(fs.readFileSync(filePath, 'utf8'));
   }
- 
-  const importedConfig = await import(pathToFileURL(filePath).href) as Record<string, unknown>;
+
+  const importedConfig = (await import(pathToFileURL(filePath).href)) as Record<string, unknown>;
   return importedConfig.default ?? importedConfig;
 }
 
@@ -98,5 +94,3 @@ function normaliseConfig(configValue: unknown, filePath: string): StoryDiffConfi
     snapshotsDir: resolvedSnapshotsDir,
   };
 }
-
-

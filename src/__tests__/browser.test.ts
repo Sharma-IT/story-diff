@@ -143,31 +143,31 @@ describe('browser adapters', () => {
 
       const adapter = await launchBrowser();
       const pageAdapter = await adapter.newPage();
-      
+
       expect(pageAdapter.getUnderlyingObject()).toBe(page);
-      
+
       await pageAdapter.setViewport({ width: 100, height: 100 });
       expect(page.setViewport).toHaveBeenCalled();
-      
+
       await pageAdapter.goto('http://foo', { waitUntil: 'load', timeout: 1000 });
       await pageAdapter.waitForFunction('1+1', { timeout: 1000 });
       await pageAdapter.waitForSelector('.foo', { timeout: 1000 });
-      
+
       const elAdapter = await pageAdapter.query('.foo');
       expect(elAdapter).toBeDefined();
       expect(elAdapter!.getUnderlyingObject()).toBe(elementHandle);
-      
+
       await elAdapter!.boundingBox();
       await elAdapter!.evaluate((x) => x);
       await elAdapter!.screenshot({});
-      
+
       const s1 = await pageAdapter.screenshot({});
       expect(Buffer.isBuffer(s1)).toBe(true);
       expect(s1.toString()).toBe('\x01\x02\x03'); // Uint8Array [1, 2, 3] as buffer
-      
+
       page.$.mockResolvedValueOnce(null);
       expect(await pageAdapter.query('.none')).toBeNull();
-      
+
       await adapter.close();
       expect(browser.close).toHaveBeenCalled();
     });
@@ -183,9 +183,15 @@ describe('browser adapters', () => {
       } as any;
       const browser = { close: vi.fn() };
       mocks.launchPuppeteerMock.mockResolvedValue(browser);
-      await launchBrowser({ provider: 'puppeteer', headless: true, args: ['--no-sandbox'] }, logger);
+      await launchBrowser(
+        { provider: 'puppeteer', headless: true, args: ['--no-sandbox'] },
+        logger,
+      );
       expect(logger.debug).toHaveBeenCalledWith('Launching puppeteer browser in headless mode');
-      expect(logger.debug).toHaveBeenCalledWith('Browser args:', expect.arrayContaining(['--no-sandbox']));
+      expect(logger.debug).toHaveBeenCalledWith(
+        'Browser args:',
+        expect.arrayContaining(['--no-sandbox']),
+      );
     });
 
     it('logs "headed" when headless is false', async () => {
@@ -273,8 +279,8 @@ describe('browser adapters', () => {
         locator: vi.fn().mockReturnValue({
           first: vi.fn().mockReturnValue({
             waitFor: vi.fn(),
-            ...locator
-          })
+            ...locator,
+          }),
         }),
         screenshot: vi.fn().mockResolvedValue(Buffer.from('foo')),
       };
@@ -286,33 +292,31 @@ describe('browser adapters', () => {
 
       const adapter = await launchBrowser({ provider: 'playwright' });
       const pageAdapter = await adapter.newPage();
-      
+
       expect(pageAdapter.getUnderlyingObject()).toBe(page);
-      
+
       await pageAdapter.goto('http://bar', { waitUntil: 'load', timeout: 1000 });
       await pageAdapter.waitForFunction('1+1', { timeout: 1000 });
       await pageAdapter.waitForSelector('.bar', { timeout: 1000 });
-      
+
       const elAdapter = await pageAdapter.query('.bar');
       expect(elAdapter).toBeDefined();
       expect(elAdapter!.getUnderlyingObject()).toHaveProperty('boundingBox');
-      
+
       await elAdapter!.boundingBox();
       await elAdapter!.evaluate((x) => x);
       const elShot = await elAdapter!.screenshot({});
       expect(Buffer.isBuffer(elShot)).toBe(true);
-      
+
       const pageShot = await pageAdapter.screenshot({});
       expect(Buffer.isBuffer(pageShot)).toBe(true);
-      
+
       page.locator().first().count = vi.fn().mockResolvedValue(0);
       expect(await pageAdapter.query('.none')).toBeNull();
-      
+
       await adapter.close();
       expect(browser.close).toHaveBeenCalled();
     });
-
-
 
     it('normalizes Uint8Array screenshots to Buffer in Playwright adapter', async () => {
       // Requirement: screenshot returning Uint8Array must be converted to Buffer
@@ -329,7 +333,9 @@ describe('browser adapters', () => {
         setDefaultTimeout: vi.fn(),
         goto: vi.fn(),
         waitForFunction: vi.fn(),
-        locator: vi.fn().mockReturnValue({ first: vi.fn().mockReturnValue({ waitFor: vi.fn(), ...locator }) }),
+        locator: vi
+          .fn()
+          .mockReturnValue({ first: vi.fn().mockReturnValue({ waitFor: vi.fn(), ...locator }) }),
         screenshot: vi.fn().mockResolvedValue(new Uint8Array([1, 2])),
       };
       const browser = { newPage: vi.fn().mockResolvedValue(page), close: vi.fn() };

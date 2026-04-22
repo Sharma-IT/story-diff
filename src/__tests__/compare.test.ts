@@ -143,24 +143,34 @@ describe('compareImages', () => {
   });
 
   it('throws on size mismatch when only width differs', () => {
-    expect(() => compareImages(createSolidPng(10, 10, { r: 0, g: 0, b: 0, a: 255 }), createSolidPng(20, 10, { r: 0, g: 0, b: 0, a: 255 }))).toThrow(SizeMismatchError);
+    expect(() =>
+      compareImages(
+        createSolidPng(10, 10, { r: 0, g: 0, b: 0, a: 255 }),
+        createSolidPng(20, 10, { r: 0, g: 0, b: 0, a: 255 }),
+      ),
+    ).toThrow(SizeMismatchError);
   });
 
   it('throws on size mismatch when only height differs', () => {
-    expect(() => compareImages(createSolidPng(10, 10, { r: 0, g: 0, b: 0, a: 255 }), createSolidPng(10, 20, { r: 0, g: 0, b: 0, a: 255 }))).toThrow(SizeMismatchError);
+    expect(() =>
+      compareImages(
+        createSolidPng(10, 10, { r: 0, g: 0, b: 0, a: 255 }),
+        createSolidPng(10, 20, { r: 0, g: 0, b: 0, a: 255 }),
+      ),
+    ).toThrow(SizeMismatchError);
   });
 
   it('respects default failureThresholdType as percent', () => {
     // 100% diff. threshold 100 should match.
-    // If it was pixels, threshold 100 would match (exactly 100 pixels). 
+    // If it was pixels, threshold 100 would match (exactly 100 pixels).
     // But default failureThreshold is 0.
-    
+
     // Test that 1% diff matches when failureThreshold is 1
     const img3 = createSolidPng(10, 10, { r: 0, g: 0, b: 0, a: 255 });
     const parsed4 = PNG.sync.read(img3);
     parsed4.data[0] = 255;
     const img4 = PNG.sync.write(parsed4);
-    
+
     const result = compareImages(img3, img4, { failureThreshold: 1 });
     expect(result.match).toBe(true);
   });
@@ -179,8 +189,16 @@ describe('compareImages', () => {
     const small = createSolidPng(10, 10, { r: 255, g: 0, b: 0, a: 255 });
     const large = createSolidPng(20, 20, { r: 255, g: 0, b: 0, a: 255 });
 
-    const resultMismatch = compareImages(small, large, { allowSizeMismatch: true, failureThreshold: 0, failureThresholdType: 'pixel' });
-    const resultMatch = compareImages(small, large, { allowSizeMismatch: true, failureThreshold: 400, failureThresholdType: 'pixel' });
+    const resultMismatch = compareImages(small, large, {
+      allowSizeMismatch: true,
+      failureThreshold: 0,
+      failureThresholdType: 'pixel',
+    });
+    const resultMatch = compareImages(small, large, {
+      allowSizeMismatch: true,
+      failureThreshold: 400,
+      failureThresholdType: 'pixel',
+    });
 
     expect(resultMismatch.match).toBe(false);
     expect(resultMismatch.diffPixels).toBe(400); // 20x20
@@ -200,7 +218,9 @@ describe('compareImages', () => {
   });
 
   it('handles 0x0 images for zero totalPixels', () => {
-    const spy = vi.spyOn(PNG.sync, 'read').mockReturnValue({ width: 0, height: 0, data: Buffer.from([]) } as any);
+    const spy = vi
+      .spyOn(PNG.sync, 'read')
+      .mockReturnValue({ width: 0, height: 0, data: Buffer.from([]) } as any);
     const result = compareImages(Buffer.from(''), Buffer.from(''));
     expect(result.diffPercentage).toBe(0);
     expect(result.match).toBe(true);
@@ -212,25 +232,29 @@ describe('compareImages', () => {
       debug: vi.fn(),
       warn: vi.fn(),
       error: vi.fn(),
-      info: vi.fn()
+      info: vi.fn(),
     } as any;
 
     const small = createSolidPng(10, 10, { r: 0, g: 0, b: 0, a: 255 });
     const large = createSolidPng(20, 20, { r: 0, g: 0, b: 0, a: 255 });
 
     compareImages(small, small, {}, logger);
-    expect(logger.debug).toHaveBeenCalledWith(expect.stringContaining('Comparing images: actual=10x10, expected=10x10'));
+    expect(logger.debug).toHaveBeenCalledWith(
+      expect.stringContaining('Comparing images: actual=10x10, expected=10x10'),
+    );
 
     try {
       compareImages(small, large, {}, logger);
-    } catch { }
+    } catch {}
     expect(logger.error).toHaveBeenCalledWith('Size mismatch detected and not allowed');
 
     compareImages(small, large, { allowSizeMismatch: true }, logger);
     expect(logger.warn).toHaveBeenCalledWith('Size mismatch detected but allowed by configuration');
-    
+
     compareImages(small, small, {}, logger);
-    expect(logger.debug).toHaveBeenCalledWith(expect.stringContaining('Comparison result: 0 pixels differ (0.00%), match=true'));
+    expect(logger.debug).toHaveBeenCalledWith(
+      expect.stringContaining('Comparison result: 0 pixels differ (0.00%), match=true'),
+    );
   });
 
   it('is sensitive to threshold configuration in pixelmatch', () => {
@@ -239,7 +263,7 @@ describe('compareImages', () => {
     const parsed = PNG.sync.read(img1);
     parsed.data.copy(png2.data);
     // Slight difference that pixelmatch should catch with low threshold
-    png2.data[0] = 5; 
+    png2.data[0] = 5;
     const img2 = PNG.sync.write(png2);
 
     // With very low threshold, it should fail
@@ -248,13 +272,16 @@ describe('compareImages', () => {
     compareImages(img1, img2, { threshold: 0.1 });
 
     expect(resultStrict.diffPixels).toBeGreaterThan(0);
-    // Note: pixelmatch threshold behavior 
+    // Note: pixelmatch threshold behavior
     // If the diff is very small, it might still be 0 with 0.1 threshold
   });
 
   it('diffPixels === 0 matches even if failureThreshold is negative', () => {
     const image = createSolidPng(10, 10, { r: 0, g: 0, b: 0, a: 255 });
-    const result = compareImages(image, image, { failureThreshold: -1, failureThresholdType: 'pixel' });
+    const result = compareImages(image, image, {
+      failureThreshold: -1,
+      failureThresholdType: 'pixel',
+    });
     expect(result.match).toBe(true);
   });
 
@@ -269,19 +296,19 @@ describe('compareImages', () => {
   it('handles size mismatch boundary for percent comparison', () => {
     const small = createSolidPng(10, 10, { r: 0, g: 0, b: 0, a: 255 });
     const large = createSolidPng(10, 20, { r: 0, g: 0, b: 0, a: 255 });
-    
+
     // Size mismatch results in 100% diff percentage
-    const result = compareImages(small, large, { 
-      allowSizeMismatch: true, 
-      failureThreshold: 100, 
-      failureThresholdType: 'percent' 
+    const result = compareImages(small, large, {
+      allowSizeMismatch: true,
+      failureThreshold: 100,
+      failureThresholdType: 'percent',
     });
     expect(result.match).toBe(true);
 
-    const resultFail = compareImages(small, large, { 
-      allowSizeMismatch: true, 
-      failureThreshold: 99, 
-      failureThresholdType: 'percent' 
+    const resultFail = compareImages(small, large, {
+      allowSizeMismatch: true,
+      failureThreshold: 99,
+      failureThresholdType: 'percent',
     });
     expect(resultFail.match).toBe(false);
   });
@@ -289,15 +316,21 @@ describe('compareImages', () => {
   it('handles pixel failure threshold correctly', () => {
     const img1 = createSolidPng(10, 10, { r: 0, g: 0, b: 0, a: 255 });
     const img2 = createSolidPng(10, 10, { r: 255, g: 255, b: 255, a: 255 });
-    
-    // 100 pixels differ. 
+
+    // 100 pixels differ.
     // Threshold 50 pixels => should fail
-    const resFail = compareImages(img1, img2, { failureThreshold: 50, failureThresholdType: 'pixel' });
+    const resFail = compareImages(img1, img2, {
+      failureThreshold: 50,
+      failureThresholdType: 'pixel',
+    });
     expect(resFail.match).toBe(false);
     expect(resFail.diffPixels).toBe(100);
 
     // Threshold 150 pixels => should pass
-    const resPass = compareImages(img1, img2, { failureThreshold: 150, failureThresholdType: 'pixel' });
+    const resPass = compareImages(img1, img2, {
+      failureThreshold: 150,
+      failureThresholdType: 'pixel',
+    });
     expect(resPass.match).toBe(true);
   });
 
@@ -311,7 +344,7 @@ describe('compareImages', () => {
     // diffPixels=100, diffPercentage=100. threshold=99 => fails for percent, matches for pixel (100<=100 would pass).
     compareImages(img1, img2, { failureThreshold: 99 }); // no failureThresholdType
     // If default were pixel: 100 diffPixels > 99 threshold => still fail. Need a cleaner boundary.
-    // Use small mismatch: 1 pixel mismatched out of 100 (1%). 
+    // Use small mismatch: 1 pixel mismatched out of 100 (1%).
     const img3 = createSolidPng(10, 10, { r: 0, g: 0, b: 0, a: 255 });
     const parsed4 = PNG.sync.read(img3);
     parsed4.data[0] = 255;
@@ -336,9 +369,17 @@ describe('compareImages', () => {
     const large = createSolidPng(20, 20, { r: 0, g: 0, b: 0, a: 255 });
     // maxWidth=20, maxHeight=20, totalPixels=400, diffPixels=400, diffPercentage=100
     // With failureThreshold=400 as pixel => match
-    const resultMatch = compareImages(small, large, { allowSizeMismatch: true, failureThreshold: 400, failureThresholdType: 'pixel' });
+    const resultMatch = compareImages(small, large, {
+      allowSizeMismatch: true,
+      failureThreshold: 400,
+      failureThresholdType: 'pixel',
+    });
     // With failureThreshold=399 as pixel => no match
-    const resultFail = compareImages(small, large, { allowSizeMismatch: true, failureThreshold: 399, failureThresholdType: 'pixel' });
+    const resultFail = compareImages(small, large, {
+      allowSizeMismatch: true,
+      failureThreshold: 399,
+      failureThresholdType: 'pixel',
+    });
     expect(resultMatch.match).toBe(true);
     expect(resultFail.match).toBe(false);
     // If the condition were 'true' always (ConditionalExpression mutant), percent path would be:
@@ -357,10 +398,18 @@ describe('compareImages', () => {
     // percent threshold=401 would be 100<=401 => also match — same result, hard to distinguish
     // Use: percent threshold=99 with type='pixel' threshold=400
     // type='percent': 100>99 => no match. type='pixel': 400<=400 => match
-    const result = compareImages(small, large, { allowSizeMismatch: true, failureThreshold: 400, failureThresholdType: 'pixel' });
+    const result = compareImages(small, large, {
+      allowSizeMismatch: true,
+      failureThreshold: 400,
+      failureThresholdType: 'pixel',
+    });
     expect(result.match).toBe(true);
     // And with percent: 100% compared to threshold=99% => mismatch
-    const resultPercent = compareImages(small, large, { allowSizeMismatch: true, failureThreshold: 99, failureThresholdType: 'percent' });
+    const resultPercent = compareImages(small, large, {
+      allowSizeMismatch: true,
+      failureThreshold: 99,
+      failureThresholdType: 'percent',
+    });
     expect(resultPercent.match).toBe(false);
   });
 
@@ -370,29 +419,41 @@ describe('compareImages', () => {
     const img1 = createSolidPng(10, 10, { r: 0, g: 0, b: 0, a: 255 });
     const png2Parsed = PNG.sync.read(img1);
     // Modify 2 pixels (2% of 100 total)
-    png2Parsed.data[0] = 255; png2Parsed.data[4] = 255;
+    png2Parsed.data[0] = 255;
+    png2Parsed.data[4] = 255;
     const img2 = PNG.sync.write(png2Parsed);
 
     // percent threshold=1 => 2% > 1% => mismatch
-    const resFail = compareImages(img1, img2, { failureThreshold: 1, failureThresholdType: 'percent' });
+    const resFail = compareImages(img1, img2, {
+      failureThreshold: 1,
+      failureThresholdType: 'percent',
+    });
     // pixel threshold=1 => 2 pixels > 1 => also mismatch (same). Go bigger.
     // percent threshold=3 => 2% <= 3% => match
-    const resPercentPass = compareImages(img1, img2, { failureThreshold: 3, failureThresholdType: 'percent' });
+    const resPercentPass = compareImages(img1, img2, {
+      failureThreshold: 3,
+      failureThresholdType: 'percent',
+    });
     // pixel threshold=1 => 2 > 1 => fail
     compareImages(img1, img2, { failureThreshold: 1, failureThresholdType: 'pixel' });
     // pixel threshold=3 => 2 <= 3 => match
-    const resPixelPass = compareImages(img1, img2, { failureThreshold: 3, failureThresholdType: 'pixel' });
+    const resPixelPass = compareImages(img1, img2, {
+      failureThreshold: 3,
+      failureThresholdType: 'pixel',
+    });
 
     // Both thresholds at 3 should pass for both types
     expect(resPercentPass.match).toBe(true);
     expect(resPixelPass.match).toBe(true);
     // Threshold=1 fails for percent but also for pixel here. Use the distinguishing case:
-    // failureThreshold=2: as percent 2%<=2% => match. As pixel 2<=2 => also match. 
+    // failureThreshold=2: as percent 2%<=2% => match. As pixel 2<=2 => also match.
     // failureThreshold=2 for percent with diff=3%: 3>2 => fail.
     const img3 = createSolidPng(10, 10, { r: 0, g: 0, b: 0, a: 255 });
     const png3Parsed = PNG.sync.read(img3);
     // 3 pixels different (3% of 100)
-    png3Parsed.data[0] = 255; png3Parsed.data[4] = 255; png3Parsed.data[8] = 255;
+    png3Parsed.data[0] = 255;
+    png3Parsed.data[4] = 255;
+    png3Parsed.data[8] = 255;
 
     // failureThreshold=2: percent => 3% > 2% => fail; pixel => 3 > 2 => also fail
     // failureThreshold=400: percent => 3% <= 400% => match; pixel => 3 <= 400 => also match

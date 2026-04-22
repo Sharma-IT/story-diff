@@ -58,7 +58,7 @@ describe('StoryDiff - Mutation Coverage (Isolated)', () => {
     tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'story-diff-mut-iso-'));
     mocks.captureStoryMock.mockResolvedValue(Buffer.from('mock-png'));
     mocks.playwrightExpectMock.mockReturnValue({
-      toHaveScreenshot: vi.fn().mockResolvedValue(undefined)
+      toHaveScreenshot: vi.fn().mockResolvedValue(undefined),
     });
   });
 
@@ -84,12 +84,14 @@ describe('StoryDiff - Mutation Coverage (Isolated)', () => {
       failOnMissingBaseline: false,
     });
     await diff.setup();
-    const result = await diff.runAll([{
-      componentName: 'Button',
-      storyPath: 'components-button',
-      stories: ['primary-button'],
-      viewports: ['desktop'],
-    }]);
+    const result = await diff.runAll([
+      {
+        componentName: 'Button',
+        storyPath: 'components-button',
+        stories: ['primary-button'],
+        viewports: ['desktop'],
+      },
+    ]);
     expect(result[0]?.snapshotName).toBe('button-primary-desktop');
     await diff.teardown();
   });
@@ -101,11 +103,13 @@ describe('StoryDiff - Mutation Coverage (Isolated)', () => {
       failOnMissingBaseline: false,
     });
     await diff.setup();
-    const result = await diff.runAll([{
-      componentName: 'Card',
-      storyPath: 'card',
-      stories: ['default'],
-    }]);
+    const result = await diff.runAll([
+      {
+        componentName: 'Card',
+        storyPath: 'card',
+        stories: ['default'],
+      },
+    ]);
     expect(result[0]?.viewport).toBe('desktop');
     await diff.teardown();
   });
@@ -208,10 +212,10 @@ describe('StoryDiff - Mutation Coverage (Isolated)', () => {
       comparison: { useNativeSnapshot: true },
     });
     await diff.setup();
-    // Test that String(error) fallback works by using an error that isn't a real Error object 
+    // Test that String(error) fallback works by using an error that isn't a real Error object
     // but its toString() matches the regex
     mocks.playwrightExpectMock.mockReturnValue({
-      toHaveScreenshot: vi.fn().mockRejectedValue("writing actual"),
+      toHaveScreenshot: vi.fn().mockRejectedValue('writing actual'),
     });
     const result = await diff.assertMatchesBaseline('s', { snapshotName: 'string-err' });
     expect(result.baselineCreated).toBe(true);

@@ -13,7 +13,5 @@ export default {
       },
     ],
   },
-  transformIgnorePatterns: [
-    'node_modules/(?!pixelmatch)',
-  ],
+  transformIgnorePatterns: ['node_modules/(?!pixelmatch)'],
 };

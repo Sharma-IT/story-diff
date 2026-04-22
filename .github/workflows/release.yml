@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     env:
       NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-    
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v6

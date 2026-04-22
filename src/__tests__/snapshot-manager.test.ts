@@ -4,12 +4,7 @@ import path from 'node:path';
 import os from 'node:os';
 import { PNG } from 'pngjs';
 
-import {
-  loadBaseline,
-  saveBaseline,
-  saveDiffOutput,
-  baselineExists,
-} from '../snapshot-manager.js';
+import { loadBaseline, saveBaseline, saveDiffOutput, baselineExists } from '../snapshot-manager.js';
 
 function createTestPng(width = 10, height = 10): Buffer {
   const png = new PNG({ width, height });

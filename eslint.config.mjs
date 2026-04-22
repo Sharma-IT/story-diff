@@ -2,6 +2,7 @@ import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import functional from 'eslint-plugin-functional';
 import globals from 'globals';
+import eslintConfigPrettier from 'eslint-config-prettier';
 
 /** @type {import('typescript-eslint').ConfigArray} */
 export default [
@@ -68,7 +69,14 @@ export default [
     },
   },
   {
-    ignores: ['dist/**', 'node_modules/**', 'coverage/**', '.stryker-tmp/**', '**/storybook-static/**', 'e2e/fixture/**'],
+    ignores: [
+      'dist/**',
+      'node_modules/**',
+      'coverage/**',
+      '.stryker-tmp/**',
+      '**/storybook-static/**',
+      'e2e/fixture/**',
+    ],
   },
   {
     files: ['eslint.config.mjs'],
@@ -78,5 +86,6 @@ export default [
       '@typescript-eslint/no-unsafe-member-access': 'off',
       '@typescript-eslint/no-unsafe-call': 'off',
     },
-  }
+  },
+  eslintConfigPrettier,
 ];

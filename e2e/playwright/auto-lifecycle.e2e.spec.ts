@@ -4,7 +4,7 @@ import { hookLifecycle, StoryDiff } from '../../src/index.js';
 
 test.describe('Story Diff Auto Lifecycle (Playwright E2E)', () => {
   const snapshotsDir = path.join(process.cwd(), 'e2e/snapshots/playwright-auto');
-  
+
   const diff = new StoryDiff({
     storybookUrl: 'http://localhost:6006',
     snapshotsDir,

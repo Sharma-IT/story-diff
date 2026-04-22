@@ -81,7 +81,7 @@ describe('hookLifecycle', () => {
     const afterAllSpy = vi.fn();
     (globalThis as any).beforeAll = beforeAllSpy;
     (globalThis as any).afterAll = afterAllSpy;
-    
+
     hookLifecycle(diff, true);
     expect(beforeAllSpy).toHaveBeenCalled();
     expect(afterAllSpy).toHaveBeenCalled();

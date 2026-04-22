@@ -29,6 +29,7 @@ npx playwright install chromium
 ```
 
 > **Requirements:**
+>
 > - Node.js 20 or higher
 > - Storybook 10.0.0 or higher
 > - Puppeteer 24.41.0 or higher
@@ -68,7 +69,7 @@ describe('Storybook Visual Regression', () => {
   it('matches Button primary baseline', async () => {
     const result = await diff.assertMatchesBaseline('components-button--primary', {
       snapshotName: 'button-primary-desktop',
-      viewport: 'desktop', 
+      viewport: 'desktop',
     });
 
     expect(result.match).toBe(true);
@@ -141,20 +142,23 @@ test.describe('Storybook Visual Regression', () => {
 ### Running Tests
 
 1. Ensure your Storybook server is running:
+
    ```bash
    npm run storybook
    ```
-   
+
    **Tip:** To prevent Storybook from opening a browser window, use the `--no-open` flag:
+
    ```bash
    storybook dev -p 6006 --no-open
    ```
 
 2. In a separate terminal, run your test framework:
+
    ```bash
    # Vitest
    vitest run visual.test.ts
-   
+
    # Jest
    NODE_OPTIONS=--experimental-vm-modules jest visual.test.ts
 
@@ -162,13 +166,14 @@ test.describe('Storybook Visual Regression', () => {
    playwright test visual.spec.ts
    ```
 
-*Tip: For CI, use `wait-on` and `concurrently` to automate this. See [CI/CD Integration](#cicd-integration).*
+_Tip: For CI, use `wait-on` and `concurrently` to automate this. See [CI/CD Integration](#cicd-integration)._
 
 ## Core Concepts
 
 ### Story IDs
 
 Story IDs follow Storybook's naming convention: `{path}--{story-name}`. For example:
+
 - `components-button--primary`
 - `pages-login--default`
 - `ui-card--with-image`
@@ -178,11 +183,13 @@ You can find story IDs in your Storybook's URL or in the `index.json` file.
 ### Snapshot Naming
 
 Snapshot names are used to identify baseline images on disk. They should be:
+
 - Descriptive and unique
 - Lowercase with hyphens
 - Include viewport if testing multiple sizes
 
 Examples:
+
 - `button-primary-desktop`
 - `card-with-image-mobile`
 - `login-form-dark-mode`
@@ -190,6 +197,7 @@ Examples:
 ### Viewports
 
 Story Diff includes three default viewports:
+
 - **mobile**: 393×852px
 - **tablet**: 768×1024px
 - **desktop**: 1440×900px
@@ -203,7 +211,7 @@ Globals are Storybook's way of passing configuration to stories (e.g., theme, lo
 ```typescript
 await diff.assertMatchesBaseline('button--primary', {
   snapshotName: 'button-dark',
-  globals: { theme: 'dark', locale: 'en-US' }
+  globals: { theme: 'dark', locale: 'en-US' },
 });
 ```
 
@@ -212,17 +220,19 @@ await diff.assertMatchesBaseline('button--primary', {
 Story Diff can automatically handle the `beforeAll` and `afterAll` hooks to manage the browser lifecycle.
 
 #### Using the Constructor
+
 Pass `autoLifecycle: true` to the constructor. This will attempt to detect `beforeAll` and `afterAll` in the global scope (supported by Vitest and Jest).
 
 ```typescript
 const diff = new StoryDiff({
   storybookUrl: 'http://localhost:6006',
   snapshotsDir: './snapshots',
-  autoLifecycle: true
+  autoLifecycle: true,
 });
 ```
 
 #### Using the `hookLifecycle` Helper
+
 If you prefer explicit registration or need to support environments without global hooks (like Playwright Test), use the `hookLifecycle` helper:
 
 ```typescript
@@ -236,7 +246,7 @@ hookLifecycle(diff, {
   enabled: true,
   beforeAll: test.beforeAll,
   afterAll: test.afterAll,
-  timeout: 60000
+  timeout: 60000,
 });
 ```
 
@@ -244,10 +254,10 @@ hookLifecycle(diff, {
 
 ```typescript
 type LifecycleConfig = {
-  enabled?: boolean;     // Enable automatic management
-  beforeAll?: HookFn;    // Custom beforeAll implementation
-  afterAll?: HookFn;     // Custom afterAll implementation
-  timeout?: number;      // Timeout for hooks (default: 60000ms)
+  enabled?: boolean; // Enable automatic management
+  beforeAll?: HookFn; // Custom beforeAll implementation
+  afterAll?: HookFn; // Custom afterAll implementation
+  timeout?: number; // Timeout for hooks (default: 60000ms)
 };
 ```
 
@@ -304,25 +314,25 @@ await diff.teardown();
 type StoryDiffConfig = {
   // Required: URL where Storybook is hosted
   storybookUrl: string;
-  
+
   // Required: Directory path for baseline images
   snapshotsDir: string;
-  
+
   // Optional: Custom viewport definitions
   viewports?: Record<string, Viewport>;
-  
+
   // Optional: Browser automation configuration
   browser?: BrowserConfig;
-  
+
   // Optional: Image comparison settings
   comparison?: ComparisonConfig;
-  
+
   // Optional: Update mode (overwrites baselines)
   update?: boolean;
-  
+
   // Optional: Fail when baseline is missing
   failOnMissingBaseline?: boolean;
-  
+
   // Optional: Logger configuration
   logger?: LoggerConfig;
 
@@ -382,13 +392,13 @@ type LoggerConfig = {
 type ComparisonConfig = {
   // Pixelmatch threshold (0-1). Lower = stricter. Default: 0.1
   threshold?: number;
-  
+
   // Acceptable diff as percentage (0-100) or pixel count. Default: 0
   failureThreshold?: number;
-  
+
   // Whether failureThreshold is 'percent' or 'pixel'. Default: 'percent'
   failureThresholdType?: 'percent' | 'pixel';
-  
+
   // Allow size mismatches between actual and baseline. Default: false
   allowSizeMismatch?: boolean;
 };
@@ -408,6 +418,7 @@ const screenshot: Buffer = await diff.captureStory(
 ```
 
 **Options:**
+
 ```typescript
 type CaptureOptions = {
   viewport?: string | Viewport;
@@ -441,6 +452,7 @@ const result: ComparisonResult = await diff.assertMatchesBaseline(
 ```
 
 **Options:**
+
 ```typescript
 type AssertOptions = CaptureOptions & {
   snapshotName: string;
@@ -449,6 +461,7 @@ type AssertOptions = CaptureOptions & {
 ```
 
 **Throws:**
+
 - `BaselineMissingError` - When baseline doesn't exist and `failOnMissingBaseline` is true
 - `VisualRegressionError` - When images differ beyond threshold
 - `SizeMismatchError` - When dimensions differ and `allowSizeMismatch` is false
@@ -475,6 +488,7 @@ const results: BatchResult[] = await diff.runAll(
 ```
 
 **Input:**
+
 ```typescript
 type StoryVisualTest = {
   componentName: string;
@@ -486,6 +500,7 @@ type StoryVisualTest = {
 ```
 
 **Output:**
+
 ```typescript
 type BatchResult = {
   storyId: string;
@@ -578,6 +593,7 @@ const diff = new StoryDiff({
 ```
 
 **Log Levels:**
+
 - `silent`: No output (default)
 - `error`: Only errors
 - `warn`: Errors and warnings
@@ -609,6 +625,7 @@ const diff = new StoryDiff({
 ```
 
 **When to use headed mode:**
+
 - Debugging test failures
 - Developing new tests
 - Demonstrating visual tests
@@ -776,8 +793,8 @@ const diff = new StoryDiff({
   storybookUrl: 'http://localhost:6006',
   snapshotsDir: './snapshots',
   comparison: {
-    threshold: 0.05,              // Stricter pixel matching
-    failureThreshold: 0.5,        // Allow 0.5% difference
+    threshold: 0.05, // Stricter pixel matching
+    failureThreshold: 0.5, // Allow 0.5% difference
     failureThresholdType: 'percent',
   },
 });
@@ -786,8 +803,8 @@ const diff = new StoryDiff({
 await diff.assertMatchesBaseline('button--primary', {
   snapshotName: 'button',
   comparison: {
-    threshold: 0.2,               // More lenient for this test
-    failureThreshold: 100,        // Allow 100 pixels difference
+    threshold: 0.2, // More lenient for this test
+    failureThreshold: 100, // Allow 100 pixels difference
     failureThresholdType: 'pixel',
   },
 });
@@ -837,22 +854,22 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: '22'
           cache: 'npm'
-      
+
       - name: Install dependencies
         run: npm ci
-      
+
       - name: Build Storybook
         run: npm run build-storybook
-      
+
       - name: Run visual tests
         run: npm run test:visual
-      
+
       - name: Upload diff images
         if: failure()
         uses: actions/upload-artifact@v7
@@ -866,18 +883,18 @@ jobs:
 Story Diff provides custom error classes for robust error handling:
 
 ```typescript
-import { 
-  VisualRegressionError, 
+import {
+  VisualRegressionError,
   BaselineMissingError,
-  SizeMismatchError, 
+  SizeMismatchError,
   NotInitializedError,
   StorybookConnectionError,
   ViewportNotFoundError,
 } from 'story-diff';
 
 try {
-  await diff.assertMatchesBaseline('button--primary', { 
-    snapshotName: 'btn' 
+  await diff.assertMatchesBaseline('button--primary', {
+    snapshotName: 'btn',
   });
 } catch (e) {
   if (e instanceof VisualRegressionError) {
@@ -899,14 +916,14 @@ try {
 
 ### Error Types
 
-| Error | When Thrown | Properties |
-|-------|-------------|------------|
-| `VisualRegressionError` | Images differ beyond threshold | `snapshotName`, `diffPercentage`, `diffPixels`, `snapshotPath`, `diffPath` |
-| `BaselineMissingError` | Baseline doesn't exist (when `failOnMissingBaseline: true`) | `snapshotName`, `snapshotPath` |
-| `SizeMismatchError` | Image dimensions differ (when `allowSizeMismatch: false`) | - |
-| `NotInitializedError` | Methods called before `setup()` | - |
-| `StorybookConnectionError` | Cannot reach Storybook server | - |
-| `ViewportNotFoundError` | Unknown viewport name used | - |
+| Error                      | When Thrown                                                 | Properties                                                                 |
+| -------------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `VisualRegressionError`    | Images differ beyond threshold                              | `snapshotName`, `diffPercentage`, `diffPixels`, `snapshotPath`, `diffPath` |
+| `BaselineMissingError`     | Baseline doesn't exist (when `failOnMissingBaseline: true`) | `snapshotName`, `snapshotPath`                                             |
+| `SizeMismatchError`        | Image dimensions differ (when `allowSizeMismatch: false`)   | -                                                                          |
+| `NotInitializedError`      | Methods called before `setup()`                             | -                                                                          |
+| `StorybookConnectionError` | Cannot reach Storybook server                               | -                                                                          |
+| `ViewportNotFoundError`    | Unknown viewport name used                                  | -                                                                          |
 
 ## Baseline Management
 
@@ -1038,6 +1055,7 @@ export default {
 ```
 
 Run with:
+
 ```bash
 NODE_OPTIONS=--experimental-vm-modules jest
 ```
@@ -1045,6 +1063,7 @@ NODE_OPTIONS=--experimental-vm-modules jest
 ### Other Frameworks
 
 Story Diff works with any test framework that supports async/await:
+
 - Mocha
 - Ava
 - Tape
@@ -1057,12 +1076,15 @@ Story Diff works with any test framework that supports async/await:
 **Problem:** `StorybookConnectionError: Failed to connect to Storybook`
 
 **Solutions:**
+
 - Ensure Storybook is running: `npm run storybook`
 - Verify the URL is correct (default: `http://localhost:6006`)
 - Check firewall/network settings
 - Increase browser timeout:
   ```typescript
-  browser: { timeout: 60000 }
+  browser: {
+    timeout: 60000;
+  }
   ```
 
 ### Flaky Tests
@@ -1070,6 +1092,7 @@ Story Diff works with any test framework that supports async/await:
 **Problem:** Tests pass sometimes, fail other times
 
 **Solutions:**
+
 - Use `waitForSelector` for async content
 - Increase `waitForTimeout` for animations
 - Disable animations in Storybook preview:
@@ -1088,11 +1111,14 @@ Story Diff works with any test framework that supports async/await:
 **Problem:** `SizeMismatchError: Image size mismatch`
 
 **Solutions:**
+
 - Component dimensions changed - update baseline
 - Viewport changed - ensure consistent viewport usage
 - Allow size mismatches temporarily:
   ```typescript
-  comparison: { allowSizeMismatch: true }
+  comparison: {
+    allowSizeMismatch: true;
+  }
   ```
 
 ### Memory Issues
@@ -1100,6 +1126,7 @@ Story Diff works with any test framework that supports async/await:
 **Problem:** Tests crash with out-of-memory errors
 
 **Solutions:**
+
 - Close browser between test suites
 - Reduce concurrent tests
 - Increase Node memory:
@@ -1112,6 +1139,7 @@ Story Diff works with any test framework that supports async/await:
 **Problem:** Puppeteer fails to install or launch
 
 **Solutions:**
+
 - Install system dependencies (Linux):
   ```bash
   sudo apt-get install -y \
@@ -1121,7 +1149,9 @@ Story Diff works with any test framework that supports async/await:
   ```
 - Use custom Chrome path:
   ```typescript
-  browser: { executablePath: '/usr/bin/google-chrome' }
+  browser: {
+    executablePath: '/usr/bin/google-chrome';
+  }
   ```
 
 ## Contributing

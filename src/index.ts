@@ -3,12 +3,7 @@ export { hookLifecycle } from './hooks.js';
 export * from './errors.js';
 export { compareImages } from './compare.js';
 export { buildStoryUrl } from './storybook.js';
-export {
-  saveBaseline,
-  loadBaseline,
-  baselineExists,
-  saveDiffOutput,
-} from './snapshot-manager.js';
+export { saveBaseline, loadBaseline, baselineExists, saveDiffOutput } from './snapshot-manager.js';
 
 export type {
   StoryDiffConfig,

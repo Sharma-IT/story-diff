@@ -1,12 +1,12 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import path from 'node:path';
 
-import { 
+import {
   StoryDiff,
-  VisualRegressionError, 
+  VisualRegressionError,
   BaselineMissingError,
   SizeMismatchError,
-  NotInitializedError
+  NotInitializedError,
 } from '../../src/index.js';
 
 describe('Story Diff (Vitest E2E)', () => {
@@ -77,9 +77,9 @@ describe('Story Diff (Vitest E2E)', () => {
     expect(results).toHaveLength(2);
     expect(results[0]?.result.match).toBe(true);
     expect(results[1]?.result.match).toBe(true);
-    
+
     // Check naming convention
-    const names = results.map(r => r.snapshotName).sort();
+    const names = results.map((r) => r.snapshotName).sort();
     expect(names).toEqual(['button-secondary-mobile', 'button-secondary-tablet']);
   }, 60_000);
 
@@ -92,7 +92,7 @@ describe('Story Diff (Vitest E2E)', () => {
     const promise = diff.assertMatchesBaseline('components-button--primary', {
       snapshotName: 'button-secondary-desktop-size',
       viewport: 'desktop',
-      comparison: { allowSizeMismatch: true }
+      comparison: { allowSizeMismatch: true },
     });
 
     await expect(promise).rejects.toThrow(VisualRegressionError);
@@ -107,11 +107,11 @@ describe('Story Diff (Vitest E2E)', () => {
     const result = await diff.assertMatchesBaseline('components-button--secondary', {
       snapshotName: 'button-threshold-test',
       viewport: 'desktop',
-      comparison: { 
+      comparison: {
         allowSizeMismatch: true,
         failureThreshold: 100,
-        failureThresholdType: 'percent'
-      }
+        failureThresholdType: 'percent',
+      },
     });
 
     expect(result.match).toBe(true);

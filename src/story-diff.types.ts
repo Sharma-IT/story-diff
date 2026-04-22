@@ -57,10 +57,10 @@ export interface ComparisonConfig {
   readonly failureThresholdType?: 'percent' | 'pixel';
   /** Allow size mismatches between actual and baseline. Default: false */
   readonly allowSizeMismatch?: boolean;
-  /** 
-   * Use Playwright's native comparison if available. 
+  /**
+   * Use Playwright's native comparison if available.
    * Only applicable when browser provider is 'playwright'.
-   * Default: false 
+   * Default: false
    */
   readonly useNativeSnapshot?: boolean;
 }
@@ -82,7 +82,7 @@ export interface StoryDiffConfig {
   readonly defaults?: CaptureOptions;
   /** Optional batch definitions used when runAll() is called without arguments */
   readonly tests?: readonly StoryVisualTest[];
-  /** 
+  /**
    * Automatic lifecycle management configuration.
    * When true, attempts to automatically register beforeAll/afterAll hooks.
    */

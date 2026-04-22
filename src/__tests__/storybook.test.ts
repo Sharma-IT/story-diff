@@ -82,7 +82,10 @@ describe('buildStoryUrl', () => {
       waitForSelector: vi.fn(),
     } as unknown as PageAdapter;
     await waitForStorybookReady(page, 'http://localhost:6006', undefined, 55_000);
-    expect(page.goto).toHaveBeenCalledWith('http://localhost:6006', { waitUntil: 'domcontentloaded', timeout: 55_000 });
+    expect(page.goto).toHaveBeenCalledWith('http://localhost:6006', {
+      waitUntil: 'domcontentloaded',
+      timeout: 55_000,
+    });
   });
 
   it('throws with precise HTTP status in error detail when response is not ok', async () => {
@@ -135,7 +138,9 @@ describe('buildStoryUrl', () => {
     const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } as any;
     await waitForStorybookReady(page, 'http://localhost', logger);
     expect(logger.debug).toHaveBeenCalledWith(expect.stringContaining('#storybook-preview-iframe'));
-    expect(logger.debug).toHaveBeenCalledWith('Found Storybook UI element: #storybook-preview-iframe');
+    expect(logger.debug).toHaveBeenCalledWith(
+      'Found Storybook UI element: #storybook-preview-iframe',
+    );
   });
 
   it('logs precise error when no selectors are found (not empty string)', async () => {
@@ -146,7 +151,9 @@ describe('buildStoryUrl', () => {
     } as unknown as PageAdapter;
     const logger = { error: vi.fn(), debug: vi.fn() } as any;
     await expect(waitForStorybookReady(page, 'http://localhost', logger)).rejects.toThrow();
-    expect(logger.error).toHaveBeenCalledWith('Storybook UI did not load - no expected selectors found');
+    expect(logger.error).toHaveBeenCalledWith(
+      'Storybook UI did not load - no expected selectors found',
+    );
   });
 
   it('logs precise error when no response from Storybook (not empty string)', async () => {
@@ -177,20 +184,28 @@ describe('waitForStorybookReady', () => {
 
     await expect(waitForStorybookReady(page, 'http://localhost:6006')).resolves.toBeUndefined();
     expect(page.goto).toHaveBeenCalledWith('http://localhost:6006', expect.any(Object));
-    expect(page.waitForSelector).toHaveBeenCalledWith('#storybook-preview-iframe', expect.any(Object));
+    expect(page.waitForSelector).toHaveBeenCalledWith(
+      '#storybook-preview-iframe',
+      expect.any(Object),
+    );
   });
 
   it('tries next selector if first one fails', async () => {
     const page = {
       goto: vi.fn().mockResolvedValue({ ok: () => true, status: () => 200 }),
-      waitForSelector: vi.fn()
+      waitForSelector: vi
+        .fn()
         .mockRejectedValueOnce(new Error('timeout'))
         .mockResolvedValueOnce(undefined),
     } as unknown as PageAdapter;
 
     await expect(waitForStorybookReady(page, 'http://localhost:6006')).resolves.toBeUndefined();
     expect(page.waitForSelector).toHaveBeenCalledTimes(2);
-    expect(page.waitForSelector).toHaveBeenNthCalledWith(2, '#storybook-preview-wrapper', expect.any(Object));
+    expect(page.waitForSelector).toHaveBeenNthCalledWith(
+      2,
+      '#storybook-preview-wrapper',
+      expect.any(Object),
+    );
   });
 
   it('throws StorybookConnectionError if goto returns null', async () => {
@@ -199,7 +214,9 @@ describe('waitForStorybookReady', () => {
     } as unknown as PageAdapter;
     const logger = { error: vi.fn(), debug: vi.fn() } as any;
 
-    await expect(waitForStorybookReady(page, 'http://localhost', logger)).rejects.toThrow(StorybookConnectionError);
+    await expect(waitForStorybookReady(page, 'http://localhost', logger)).rejects.toThrow(
+      StorybookConnectionError,
+    );
     expect(logger.error).toHaveBeenCalled();
   });
 
@@ -209,7 +226,9 @@ describe('waitForStorybookReady', () => {
     } as unknown as PageAdapter;
     const logger = { error: vi.fn(), debug: vi.fn() } as any;
 
-    await expect(waitForStorybookReady(page, 'http://localhost', logger)).rejects.toThrow(StorybookConnectionError);
+    await expect(waitForStorybookReady(page, 'http://localhost', logger)).rejects.toThrow(
+      StorybookConnectionError,
+    );
     expect(logger.error).toHaveBeenCalled();
   });
 
@@ -241,14 +260,17 @@ describe('waitForStorybookReady', () => {
     } as any;
 
     await waitForStorybookReady(page, 'http://localhost:6006', logger);
-    expect(logger.debug).toHaveBeenCalledWith(expect.stringContaining('Checking Storybook readiness'));
+    expect(logger.debug).toHaveBeenCalledWith(
+      expect.stringContaining('Checking Storybook readiness'),
+    );
     expect(logger.info).toHaveBeenCalledWith('Storybook is ready');
   });
 
   it('tries all selectors sequentially', async () => {
     const page = {
       goto: vi.fn().mockResolvedValue({ ok: () => true, status: () => 200 }),
-      waitForSelector: vi.fn()
+      waitForSelector: vi
+        .fn()
         .mockRejectedValueOnce(new Error('1'))
         .mockRejectedValueOnce(new Error('2'))
         .mockRejectedValueOnce(new Error('3'))
@@ -257,7 +279,11 @@ describe('waitForStorybookReady', () => {
 
     await waitForStorybookReady(page, 'http://localhost:6006');
     expect(page.waitForSelector).toHaveBeenCalledTimes(4);
-    expect(page.waitForSelector).toHaveBeenNthCalledWith(4, 'div[data-testid="preview-container"]', expect.any(Object));
+    expect(page.waitForSelector).toHaveBeenNthCalledWith(
+      4,
+      'div[data-testid="preview-container"]',
+      expect.any(Object),
+    );
   });
 
   it('strips multiple trailing slashes from storybookUrl', async () => {
@@ -278,7 +304,10 @@ describe('waitForStorybookReady', () => {
       waitForSelector: vi.fn(),
     } as unknown as PageAdapter;
     await waitForStorybookReady(page, 'http://localhost:6006', undefined, 55_000);
-    expect(page.goto).toHaveBeenCalledWith('http://localhost:6006', { waitUntil: 'domcontentloaded', timeout: 55_000 });
+    expect(page.goto).toHaveBeenCalledWith('http://localhost:6006', {
+      waitUntil: 'domcontentloaded',
+      timeout: 55_000,
+    });
   });
 
   it('throws with precise HTTP status in error detail when response is not ok', async () => {
@@ -331,7 +360,9 @@ describe('waitForStorybookReady', () => {
     const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } as any;
     await waitForStorybookReady(page, 'http://localhost', logger);
     expect(logger.debug).toHaveBeenCalledWith(expect.stringContaining('#storybook-preview-iframe'));
-    expect(logger.debug).toHaveBeenCalledWith('Found Storybook UI element: #storybook-preview-iframe');
+    expect(logger.debug).toHaveBeenCalledWith(
+      'Found Storybook UI element: #storybook-preview-iframe',
+    );
   });
 
   it('logs precise error when no selectors are found (not empty string)', async () => {
@@ -342,7 +373,9 @@ describe('waitForStorybookReady', () => {
     } as unknown as PageAdapter;
     const logger = { error: vi.fn(), debug: vi.fn() } as any;
     await expect(waitForStorybookReady(page, 'http://localhost', logger)).rejects.toThrow();
-    expect(logger.error).toHaveBeenCalledWith('Storybook UI did not load - no expected selectors found');
+    expect(logger.error).toHaveBeenCalledWith(
+      'Storybook UI did not load - no expected selectors found',
+    );
   });
 
   it('logs precise error when no response from Storybook (not empty string)', async () => {
@@ -363,4 +396,3 @@ describe('waitForStorybookReady', () => {
     await expect(waitForStorybookReady(page, 'http://localhost')).rejects.toThrow();
   });
 });
-

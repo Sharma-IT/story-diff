@@ -53,17 +53,15 @@ export class StoryDiff {
 
     this.logger.info('Setting up StoryDiff...');
     this.logger.debug('Browser config:', config.browser);
-    
+
     this.browser = await launchBrowser(config.browser, this.logger);
     this.page = await createPage(this.browser);
-    
+
     this.logger.info(`Connecting to Storybook at ${config.storybookUrl}`);
     await waitForStorybookReady(this.page, config.storybookUrl, this.logger);
-    
+
     this.logger.info('StoryDiff setup complete');
   }
-
-
 
   async teardown(): Promise<void> {
     if (this.browser) {
@@ -82,7 +80,9 @@ export class StoryDiff {
     const resolvedViewport = this.resolveViewport(captureOptions.viewport, config.viewports);
 
     if (resolvedViewport) {
-      this.logger.debug(`Setting viewport to ${resolvedViewport.name} (${String(resolvedViewport.width)}x${String(resolvedViewport.height)})`);
+      this.logger.debug(
+        `Setting viewport to ${resolvedViewport.name} (${String(resolvedViewport.width)}x${String(resolvedViewport.height)})`,
+      );
       await page.setViewport({
         width: resolvedViewport.width,
         height: resolvedViewport.height,
@@ -99,13 +99,8 @@ export class StoryDiff {
     comparisonOverride?: ComparisonConfig,
   ): Promise<ComparisonResult> {
     const config = await this.getConfig();
-    const { 
-      snapshotsDir, 
-      comparison = {}, 
-      update = false,
-      failOnMissingBaseline = true 
-    } = config;
-    const mergedComparison = comparisonOverride 
+    const { snapshotsDir, comparison = {}, update = false, failOnMissingBaseline = true } = config;
+    const mergedComparison = comparisonOverride
       ? { ...comparison, ...comparisonOverride }
       : comparison;
 
@@ -159,15 +154,20 @@ export class StoryDiff {
     const compareResult = compareImages(screenshot, existing, mergedComparison, this.logger);
     const snapshotPath = `${snapshotsDir}/${snapshotName}.png`;
 
-    const diffPath = !compareResult.match && compareResult.diffImage
-      ? saveDiffOutput(snapshotsDir, snapshotName, compareResult.diffImage)
-      : null;
+    const diffPath =
+      !compareResult.match && compareResult.diffImage
+        ? saveDiffOutput(snapshotsDir, snapshotName, compareResult.diffImage)
+        : null;
 
     if (diffPath) {
-      this.logger.warn(`Visual difference detected: ${snapshotName} (${compareResult.diffPercentage.toFixed(2)}%)`);
+      this.logger.warn(
+        `Visual difference detected: ${snapshotName} (${compareResult.diffPercentage.toFixed(2)}%)`,
+      );
       this.logger.info(`Diff image saved: ${diffPath}`);
     } else if (!compareResult.match) {
-      this.logger.warn(`Visual difference detected: ${snapshotName} (${compareResult.diffPercentage.toFixed(2)}%)`);
+      this.logger.warn(
+        `Visual difference detected: ${snapshotName} (${compareResult.diffPercentage.toFixed(2)}%)`,
+      );
     } else {
       this.logger.debug(`Snapshot matches baseline: ${snapshotName}`);
     }
@@ -189,10 +189,7 @@ export class StoryDiff {
     return saveBaseline(config.snapshotsDir, snapshotName, screenshot);
   }
 
-  async assertMatchesBaseline(
-    storyId: string,
-    options: AssertOptions,
-  ): Promise<ComparisonResult> {
+  async assertMatchesBaseline(storyId: string, options: AssertOptions): Promise<ComparisonResult> {
     const config = await this.getConfig();
     const mergedComparison = { ...config.comparison, ...options.comparison };
 
@@ -218,7 +215,7 @@ export class StoryDiff {
         result.diffPercentage,
         result.diffPixels,
         result.snapshotPath,
-        result.diffPath
+        result.diffPath,
       );
     }
 
@@ -232,7 +229,7 @@ export class StoryDiff {
   ): Promise<ComparisonResult> {
     const config = await this.getConfig();
     const pageAdapter = this.getPage();
-    
+
     await this.captureStory(storyId, options);
 
     const playwrightPage = pageAdapter.getUnderlyingObject() as {
@@ -251,9 +248,10 @@ export class StoryDiff {
     })();
 
     const snapshotName = `${options.snapshotName}.png`;
-    const snapshotPath = isRecord(testInfo) && typeof testInfo.snapshotPath === 'function' 
-      ? (testInfo.snapshotPath as (name: string) => string)(snapshotName)
-      : path.join(config.snapshotsDir, snapshotName);
+    const snapshotPath =
+      isRecord(testInfo) && typeof testInfo.snapshotPath === 'function'
+        ? (testInfo.snapshotPath as (name: string) => string)(snapshotName)
+        : path.join(config.snapshotsDir, snapshotName);
 
     const pwOptions: Record<string, unknown> = {
       animations: 'disabled',
@@ -271,7 +269,12 @@ export class StoryDiff {
     }
 
     try {
-      if (testInfo && snapshotPath && !fs.existsSync(snapshotPath) && config.failOnMissingBaseline === false) {
+      if (
+        testInfo &&
+        snapshotPath &&
+        !fs.existsSync(snapshotPath) &&
+        config.failOnMissingBaseline === false
+      ) {
         this.logger.info(`Creating missing native baseline: ${snapshotPath}`);
         await playwrightPage.screenshot({ path: snapshotPath, ...pwOptions });
         return {
@@ -302,8 +305,11 @@ export class StoryDiff {
     } catch (error: unknown) {
       const errorMessage = error instanceof Error ? error.message : String(error);
 
-      const isBaselineMissing = /snapshot.*doesn't.*exist|writing.*actual|no.*snapshot|snapshot.*not.*found|missing.*baseline/i.test(errorMessage);
-      
+      const isBaselineMissing =
+        /snapshot.*doesn't.*exist|writing.*actual|no.*snapshot|snapshot.*not.*found|missing.*baseline/i.test(
+          errorMessage,
+        );
+
       if (isBaselineMissing) {
         return {
           match: true,
@@ -318,14 +324,8 @@ export class StoryDiff {
       }
 
       this.logger.error(`Native Playwright snapshot failed: ${errorMessage}`);
-      
-      throw new VisualRegressionError(
-        options.snapshotName,
-        100,
-        0,
-        snapshotPath,
-        null
-      );
+
+      throw new VisualRegressionError(options.snapshotName, 100, 0, snapshotPath, null);
     }
   }
 
@@ -333,7 +333,7 @@ export class StoryDiff {
     const config = await this.getConfig();
     const results: BatchResult[] = [];
     const testsToRun = tests ?? config.tests ?? [];
-    
+
     this.logger.info(`Running batch tests for ${String(testsToRun.length)} component(s)`);
 
     for (const test of testsToRun) {
@@ -343,11 +343,7 @@ export class StoryDiff {
         const storyId = `${test.storyPath}--${story}`;
 
         for (const viewportName of viewports) {
-          const snapshotName = buildSnapshotName(
-            test.componentName,
-            story,
-            viewportName,
-          );
+          const snapshotName = buildSnapshotName(test.componentName, story, viewportName);
 
           const result = await this.assertMatchesBaseline(storyId, {
             snapshotName,
@@ -359,7 +355,7 @@ export class StoryDiff {
         }
       }
     }
-    
+
     this.logger.info(`Batch tests complete: ${String(results.length)} snapshot(s) processed`);
 
     return results;
@@ -390,9 +386,14 @@ export class StoryDiff {
     return this.page;
   }
 
-  private async getConfig(): Promise<StoryDiffConfig & { readonly storybookUrl: string; readonly snapshotsDir: string }> {
+  private async getConfig(): Promise<
+    StoryDiffConfig & { readonly storybookUrl: string; readonly snapshotsDir: string }
+  > {
     if (this.config?.storybookUrl && this.config.snapshotsDir) {
-      return this.config as StoryDiffConfig & { readonly storybookUrl: string; readonly snapshotsDir: string };
+      return this.config as StoryDiffConfig & {
+        readonly storybookUrl: string;
+        readonly snapshotsDir: string;
+      };
     }
 
     const resolved = await resolveStoryDiffConfig(this.config ?? undefined);
@@ -401,10 +402,7 @@ export class StoryDiff {
     return this.config as StoryDiffConfig & { storybookUrl: string; snapshotsDir: string };
   }
 
-  private mergeCaptureOptions(
-    config: StoryDiffConfig,
-    options: CaptureOptions,
-  ): CaptureOptions {
+  private mergeCaptureOptions(config: StoryDiffConfig, options: CaptureOptions): CaptureOptions {
     const defaults = config.defaults ?? {};
     const defaultGlobals = defaults.globals ?? {};
     const optionGlobals = options.globals ?? {};
@@ -418,11 +416,7 @@ export class StoryDiff {
   }
 }
 
-function buildSnapshotName(
-  componentName: string,
-  story: string,
-  viewport: string,
-): string {
+function buildSnapshotName(componentName: string, story: string, viewport: string): string {
   const comp = componentName.toLowerCase();
 
   // Remove component name from story to avoid duplication like "button-primary-button"
@@ -434,5 +428,3 @@ function buildSnapshotName(
 
   return `${comp}-${cleanStory}-${viewport}`;
 }
-
-

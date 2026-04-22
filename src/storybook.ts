@@ -15,13 +15,18 @@ export function buildStoryUrl(
 ): string {
   const base = storybookUrl.replace(/\/+$/, '');
   const baseParams = { id: storyId, viewMode: 'story' };
- 
-  const globalsParam = globals && Object.keys(globals).length > 0
-    ? { globals: Object.entries(globals).map(([key, value]) => `${key}:${value}`).join(';') }
-    : {};
- 
+
+  const globalsParam =
+    globals && Object.keys(globals).length > 0
+      ? {
+          globals: Object.entries(globals)
+            .map(([key, value]) => `${key}:${value}`)
+            .join(';'),
+        }
+      : {};
+
   const params = new URLSearchParams({ ...baseParams, ...globalsParam } as Record<string, string>);
- 
+
   return `${base}/iframe.html?${params.toString()}`;
 }
 
@@ -80,7 +85,7 @@ export async function waitForStorybookReady(
     logger?.error('Storybook UI did not load - no expected selectors found');
     throw new StorybookConnectionError(
       base,
-      'Storybook UI did not load. None of the expected selectors were found.'
+      'Storybook UI did not load. None of the expected selectors were found.',
     );
   }
 

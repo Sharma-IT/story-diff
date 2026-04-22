@@ -228,14 +228,12 @@ class PuppeteerPageAdapter implements PageAdapter {
     await this.page.waitForFunction(expression, options);
   }
 
-
-
   async waitForSelector(selector: string, options: WaitForOptions): Promise<void> {
     await this.page.waitForSelector(selector, options);
   }
 
   async query(selector: string): Promise<ElementHandleAdapter | null> {
-    const element = (await this.page.$(selector)) as PuppeteerElementHandle | null;
+    const element = await this.page.$(selector);
     return element ? new PuppeteerElementAdapter(element) : null;
   }
 

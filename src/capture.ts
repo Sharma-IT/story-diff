@@ -45,9 +45,9 @@ export async function captureStory(
   options: CaptureOptions = {},
   logger?: Logger,
 ): Promise<Buffer> {
-  const { 
-    globals, 
-    waitForSelector, 
+  const {
+    globals,
+    waitForSelector,
     waitForTimeout = DEFAULT_WAIT_TIMEOUT,
     maxRetries = DEFAULT_MAX_RETRIES,
     retryDelay = DEFAULT_RETRY_DELAY,
@@ -56,7 +56,12 @@ export async function captureStory(
   const url = buildStoryUrl(storybookUrl, storyId, globals);
   logger?.debug(`Navigating to: ${url}`);
 
-  const runAttempt = async (attempt: number): Promise<{ readonly type: 'success'; readonly data: Buffer } | { readonly type: 'failure'; readonly error: Error }> => {
+  const runAttempt = async (
+    attempt: number,
+  ): Promise<
+    | { readonly type: 'success'; readonly data: Buffer }
+    | { readonly type: 'failure'; readonly error: Error }
+  > => {
     try {
       if (attempt > 0) {
         logger?.warn(`Retry attempt ${String(attempt)} for story: ${storyId}`);
@@ -70,7 +75,9 @@ export async function captureStory(
       if (!response?.ok()) {
         return {
           type: 'failure',
-          error: new Error(`Navigation failed: HTTP ${String(response?.status() ?? 'no response')} for ${url}`)
+          error: new Error(
+            `Navigation failed: HTTP ${String(response?.status() ?? 'no response')} for ${url}`,
+          ),
         };
       }
 
@@ -100,12 +107,14 @@ export async function captureStory(
       if (!element) {
         return {
           type: 'failure',
-          error: new Error(`Could not find story root element for ${storyId}. Tried selectors: ${STORY_ROOT_SELECTORS.join(', ')}`)
+          error: new Error(
+            `Could not find story root element for ${storyId}. Tried selectors: ${STORY_ROOT_SELECTORS.join(', ')}`,
+          ),
         };
       }
 
       await element.evaluate((el: unknown) => {
-        if (el instanceof HTMLElement) {
+        if (el instanceof HTMLElement && el.style) {
           // eslint-disable-next-line functional/immutable-data
           el.style.display = 'inline-block';
         }
@@ -113,10 +122,12 @@ export async function captureStory(
 
       const box = await element.boundingBox();
       if (!box || box.height === 0) {
-        await page.screenshot({ path: `e2e/snapshots/error-${storyId}-zero-height.png` }).catch(() => undefined);
+        await page
+          .screenshot({ path: `e2e/snapshots/error-${storyId}-zero-height.png` })
+          .catch(() => undefined);
         return {
           type: 'failure',
-          error: new Error(`Story element has zero height for ${storyId}`)
+          error: new Error(`Story element has zero height for ${storyId}`),
         };
       }
 
@@ -124,18 +135,18 @@ export async function captureStory(
       const screenshotData = await element.screenshot({ type: 'png', omitBackground: true });
       return {
         type: 'success',
-        data: Buffer.isBuffer(screenshotData) ? screenshotData : Buffer.from(screenshotData)
+        data: Buffer.isBuffer(screenshotData) ? screenshotData : Buffer.from(screenshotData),
       };
     } catch (error) {
       return {
         type: 'failure',
-        error: error instanceof Error ? error : new Error(String(error))
+        error: error instanceof Error ? error : new Error(String(error)),
       };
     }
   };
 
   const attempts = Array.from({ length: maxRetries + 1 }, (_, i) => i);
-  
+
   // We use a for-of loop to execute attempts sequentially with await
   // This is a common pattern for retries even in functional code.
   // eslint-disable-next-line functional/no-let
@@ -146,7 +157,7 @@ export async function captureStory(
     if (result.type === 'success') {
       return result.data;
     }
-    
+
     lastError = result.error;
     if (attempt < maxRetries) {
       logger?.warn(`Capture failed, retrying in ${String(retryDelay)}ms...`, result.error.message);
@@ -154,8 +165,9 @@ export async function captureStory(
     }
   }
 
-  logger?.error(`Failed to capture story after ${String(maxRetries + 1)} attempts:`, lastError?.message);
+  logger?.error(
+    `Failed to capture story after ${String(maxRetries + 1)} attempts:`,
+    lastError?.message,
+  );
   throw lastError ?? new Error(`Failed to capture story ${storyId}`);
 }
-
-
