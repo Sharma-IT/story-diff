@@ -414,57 +414,29 @@ describe('compareImages', () => {
   });
 
   it('regular comparison failureThresholdType=percent is not always-true or always-false', () => {
-    // Requirement: failureThresholdType === 'percent' in normal compare block must not be hardcoded
-    // Case: Verify both the percent and pixel paths yield different results for same input
-    const img1 = createSolidPng(10, 10, { r: 0, g: 0, b: 0, a: 255 });
+    // Distinguishing case: large image where percent and pixel values are far apart
+    // Image 100x100 = 10,000 pixels.
+    // 50 pixels diff = 0.5% difference.
+    const img1 = createSolidPng(100, 100, { r: 0, g: 0, b: 0, a: 255 });
     const png2Parsed = PNG.sync.read(img1);
-    // Modify 2 pixels (2% of 100 total)
-    png2Parsed.data[0] = 255;
-    png2Parsed.data[4] = 255;
+    for (let i = 0; i < 50; i++) {
+      png2Parsed.data[i * 4] = 255; // Modify 50 pixels
+    }
     const img2 = PNG.sync.write(png2Parsed);
 
-    // percent threshold=1 => 2% > 1% => mismatch
-    const resFail = compareImages(img1, img2, {
-      failureThreshold: 1,
+    // failureThreshold = 1.0
+    // With type='percent': 0.5% <= 1.0% => MATCH
+    const resPercent = compareImages(img1, img2, {
+      failureThreshold: 1.0,
       failureThresholdType: 'percent',
     });
-    // pixel threshold=1 => 2 pixels > 1 => also mismatch (same). Go bigger.
-    // percent threshold=3 => 2% <= 3% => match
-    const resPercentPass = compareImages(img1, img2, {
-      failureThreshold: 3,
-      failureThresholdType: 'percent',
-    });
-    // pixel threshold=1 => 2 > 1 => fail
-    compareImages(img1, img2, { failureThreshold: 1, failureThresholdType: 'pixel' });
-    // pixel threshold=3 => 2 <= 3 => match
-    const resPixelPass = compareImages(img1, img2, {
-      failureThreshold: 3,
+    expect(resPercent.match).toBe(true);
+
+    // With type='pixel': 50 pixels <= 1.0 pixel => MISMATCH
+    const resPixel = compareImages(img1, img2, {
+      failureThreshold: 1.0,
       failureThresholdType: 'pixel',
     });
-
-    // Both thresholds at 3 should pass for both types
-    expect(resPercentPass.match).toBe(true);
-    expect(resPixelPass.match).toBe(true);
-    // Threshold=1 fails for percent but also for pixel here. Use the distinguishing case:
-    // failureThreshold=2: as percent 2%<=2% => match. As pixel 2<=2 => also match.
-    // failureThreshold=2 for percent with diff=3%: 3>2 => fail.
-    const img3 = createSolidPng(10, 10, { r: 0, g: 0, b: 0, a: 255 });
-    const png3Parsed = PNG.sync.read(img3);
-    // 3 pixels different (3% of 100)
-    png3Parsed.data[0] = 255;
-    png3Parsed.data[4] = 255;
-    png3Parsed.data[8] = 255;
-
-    // failureThreshold=2: percent => 3% > 2% => fail; pixel => 3 > 2 => also fail
-    // failureThreshold=400: percent => 3% <= 400% => match; pixel => 3 <= 400 => also match
-    // Distinguishing case: threshold=3 vs type
-    // percent: 3% <= 3% => match. pixel: 3 <= 3 => also match. Same.
-    // ONLY meaningful test: confirm the string 'percent' is checked, not empty string
-    // If failureThresholdType === '' were checked: '' !== '' is false, no wait... '' === '' is true if mutant replaces 'percent' with ''
-    // Mutant: failureThresholdType === "" — if actual type is 'percent', '' === 'percent' is false => pixel branch runs
-    // pixel branch: 3diffPixels <= 3threshold => match. But percent branch: 3% <= 3% also match. Still same.
-    // Use: threshold=3 percent, diffPixels=3 (3%): percent path says 3%<=3% match. pixel path says 3<=3 match.
-    // NO distinguishing here without specific setup. Best coverage: the existing tests above already cover it.
-    expect(resFail.match).toBe(false);
+    expect(resPixel.match).toBe(false);
   });
 });

@@ -135,4 +135,19 @@ describe('hookLifecycle', () => {
     expect(beforeAllSpy).not.toHaveBeenCalled();
     delete (globalThis as any).beforeAll;
   });
+
+  it('ignores global hooks that are not functions', () => {
+    // Requirement: typeof globals.beforeAll === 'function' guard
+    // Case: boundary — global exists but is not a function
+    (globalThis as any).beforeAll = 'not a function';
+    (globalThis as any).afterAll = 123;
+    
+    // Should not throw
+    expect(() => {
+      hookLifecycle(diff, true);
+    }).not.toThrow();
+    
+    delete (globalThis as any).beforeAll;
+    delete (globalThis as any).afterAll;
+  });
 });

@@ -792,6 +792,62 @@ describe('StoryDiff - Root Config Autoload', () => {
   });
 });
 
+describe('StoryDiff - Additional Edge Cases', () => {
+  let tempDir: string;
+  let diff: StoryDiff;
+
+  beforeEach(async () => {
+    tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'story-diff-edge-case-'));
+    diff = new StoryDiff({
+      storybookUrl: 'http://localhost:6006',
+      snapshotsDir: tempDir,
+    });
+    await diff.setup();
+  });
+
+  afterEach(async () => {
+    await diff.teardown();
+    fs.rmSync(tempDir, { recursive: true, force: true });
+    vi.clearAllMocks();
+  });
+
+  it('explicitly throws BaselineMissingError when failOnMissingBaseline is true', async () => {
+    // Requirement: failOnMissingBaseline: true must throw when baseline is missing
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost:6006',
+      snapshotsDir: tempDir,
+      failOnMissingBaseline: true,
+    });
+    await diff.setup();
+    await expect(diff.assertMatchesBaseline('some-story', { snapshotName: 'missing' })).rejects.toThrow(
+      BaselineMissingError,
+    );
+    await diff.teardown();
+  });
+
+  it('strips component name suffix correctly during name normalization', async () => {
+    // Requirement: normalization should strip "-componentName" suffix from story names
+    // Case: happy-path — story "primary-button" for component "Button" becomes "button-primary"
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost:6006',
+      snapshotsDir: tempDir,
+      failOnMissingBaseline: false,
+    });
+    await diff.setup();
+    
+    // We use runAll as it's the main entry for this normalization logic
+    const results = await diff.runAll([{
+      componentName: 'Toggle',
+      storyPath: 'ui-toggle',
+      stories: ['active-toggle'], // suffix "toggle" matches component "Toggle"
+      viewports: ['desktop']
+    }]);
+    
+    expect(results[0]?.snapshotName).toBe('toggle-active-desktop');
+    await diff.teardown();
+  });
+});
+
 describe('StoryDiff - Mutation Coverage', () => {
   let tempDir: string;
 

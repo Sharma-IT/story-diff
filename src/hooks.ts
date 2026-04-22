@@ -9,8 +9,6 @@ import type { LifecycleConfig, LifecycleHook } from './story-diff.types.js';
  * @param config Optional lifecycle configuration.
  */
 export function hookLifecycle(diff: StoryDiff, config?: boolean | LifecycleConfig): void {
-  if (config === false) return;
-
   const enabled = config === true || (typeof config === 'object' && config.enabled !== false);
   if (!enabled) return;
 

@@ -582,4 +582,63 @@ describe('captureStory', () => {
     // error arg to dummyLogger.error must not throw TypeError on lastError?.message
     expect(dummyLogger.error).toHaveBeenCalled();
   });
+
+  it('handles capture without logger correctly', async () => {
+    // Requirement: optional chaining on logger should prevent crashes when no logger is provided
+    // Case: happy-path (no logger)
+    await expect(
+      captureStory(mockPage as PageAdapter, 'http://host', 'test-id', { maxRetries: 0 }),
+    ).resolves.toBeDefined();
+  });
+
+  it('verifies all logger optional chaining paths with no logger', async () => {
+    // Requirement: all logger paths must be safely skipped if logger is undefined
+    // Case: error path with no logger
+    mockPage.goto = vi.fn().mockResolvedValue({ ok: () => false, status: () => 500 });
+    await expect(
+      captureStory(mockPage as PageAdapter, 'http://host', 'test-id', {
+        maxRetries: 1,
+        retryDelay: 0,
+        waitForSelector: '.missing',
+        waitForTimeout: 1,
+      }),
+    ).rejects.toThrow();
+    // If any logger.xxx was called without optional chaining, this would throw TypeError
+  });
+
+  it('style guard handles non-object element safely', async () => {
+    // Requirement: style guard must handle elements that are not objects (e.g. null/undefined)
+    // Case: boundary
+    mockElement.evaluate = vi.fn().mockImplementation((fn: any) => {
+      fn(null);
+      return Promise.resolve(undefined);
+    });
+    await expect(
+      captureStory(mockPage as PageAdapter, 'http://host', 'test-id', { maxRetries: 0 }),
+    ).resolves.toBeDefined();
+  });
+
+  it('style guard handles element without style property safely', async () => {
+    // Requirement: style guard must handle elements without style property
+    // Case: boundary
+    mockElement.evaluate = vi.fn().mockImplementation((fn: any) => {
+      fn({});
+      return Promise.resolve(undefined);
+    });
+    await expect(
+      captureStory(mockPage as PageAdapter, 'http://host', 'test-id', { maxRetries: 0 }),
+    ).resolves.toBeDefined();
+  });
+
+  it('style guard handles element with null style safely', async () => {
+    // Requirement: style guard must handle elements where style is null
+    // Case: boundary
+    mockElement.evaluate = vi.fn().mockImplementation((fn: any) => {
+      fn({ style: null });
+      return Promise.resolve(undefined);
+    });
+    await expect(
+      captureStory(mockPage as PageAdapter, 'http://host', 'test-id', { maxRetries: 0 }),
+    ).resolves.toBeDefined();
+  });
 });

@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   chromiumLaunchMock: vi.fn(),
   firefoxLaunchMock: vi.fn(),
   webkitLaunchMock: vi.fn(),
+  shouldFailPlaywrightLoad: false,
 }));
 
 vi.mock('puppeteer', () => ({
@@ -250,6 +251,22 @@ describe('browser adapters', () => {
       expect(callArgs?.args).toHaveLength(7);
     });
 
+    it('uses default provider puppeteer when none is specified', async () => {
+      // Requirement: default provider must be 'puppeteer', not empty string
+      // Case: boundary — no config at all
+      const browser = {
+        newPage: vi.fn().mockResolvedValue({
+          setViewport: vi.fn(),
+          setDefaultNavigationTimeout: vi.fn(),
+          setDefaultTimeout: vi.fn(),
+        }),
+        close: vi.fn(),
+      };
+      mocks.launchPuppeteerMock.mockResolvedValue(browser);
+      await launchBrowser();
+      expect(mocks.launchPuppeteerMock).toHaveBeenCalled();
+    });
+
     it('uses default headless=true when not specified', async () => {
       // Requirement: when headless is not provided, default is true → headless:'shell'
       // Case: boundary — no headless config
@@ -258,6 +275,17 @@ describe('browser adapters', () => {
       await launchBrowser({});
       expect(mocks.launchPuppeteerMock).toHaveBeenCalledWith(
         expect.objectContaining({ headless: 'shell' }),
+      );
+    });
+
+    it('passes executablePath to Puppeteer when provided', async () => {
+      // Requirement: executablePath should be passed to Puppeteer launch options
+      // Case: happy-path
+      const browser = { close: vi.fn() };
+      mocks.launchPuppeteerMock.mockResolvedValue(browser);
+      await launchBrowser({ executablePath: '/custom/path' });
+      expect(mocks.launchPuppeteerMock).toHaveBeenCalledWith(
+        expect.objectContaining({ executablePath: '/custom/path' }),
       );
     });
   });
@@ -274,7 +302,7 @@ describe('browser adapters', () => {
         setViewportSize: vi.fn(),
         setDefaultNavigationTimeout: vi.fn(),
         setDefaultTimeout: vi.fn(),
-        goto: vi.fn(),
+        goto: vi.fn().mockResolvedValue({ ok: () => true, status: () => 200 }),
         waitForFunction: vi.fn(),
         locator: vi.fn().mockReturnValue({
           first: vi.fn().mockReturnValue({
@@ -295,7 +323,10 @@ describe('browser adapters', () => {
 
       expect(pageAdapter.getUnderlyingObject()).toBe(page);
 
-      await pageAdapter.goto('http://bar', { waitUntil: 'load', timeout: 1000 });
+      const response = await pageAdapter.goto('http://bar', { waitUntil: 'load', timeout: 1000 });
+      expect(response?.ok()).toBe(true);
+      expect(response?.status()).toBe(200);
+
       await pageAdapter.waitForFunction('1+1', { timeout: 1000 });
       await pageAdapter.waitForSelector('.bar', { timeout: 1000 });
 
@@ -303,19 +334,57 @@ describe('browser adapters', () => {
       expect(elAdapter).toBeDefined();
       expect(elAdapter!.getUnderlyingObject()).toHaveProperty('boundingBox');
 
-      await elAdapter!.boundingBox();
-      await elAdapter!.evaluate((x) => x);
+      const box = await elAdapter!.boundingBox();
+      expect(box).toEqual({ x: 0, y: 0, width: 10, height: 10 });
+
+      const evalResult = await elAdapter!.evaluate((x) => `evaluated ${x}`);
+      expect(evalResult).toBe('evaluated el');
+
       const elShot = await elAdapter!.screenshot({});
       expect(Buffer.isBuffer(elShot)).toBe(true);
+      expect(elShot.toString()).toBe('stringdata');
 
       const pageShot = await pageAdapter.screenshot({});
       expect(Buffer.isBuffer(pageShot)).toBe(true);
+      expect(pageShot.toString()).toBe('foo');
 
       page.locator().first().count = vi.fn().mockResolvedValue(0);
       expect(await pageAdapter.query('.none')).toBeNull();
 
       await adapter.close();
       expect(browser.close).toHaveBeenCalled();
+    });
+
+    it('logs Playwright engine when launching', async () => {
+      // Requirement: logger should log the Playwright browser engine
+      // Case: happy-path
+      const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } as any;
+      const browser = { close: vi.fn() };
+      mocks.chromiumLaunchMock.mockResolvedValue(browser);
+      await launchBrowser({ provider: 'playwright', browserName: 'chromium' }, logger);
+      expect(logger.debug).toHaveBeenCalledWith('Using Playwright browser engine: chromium');
+    });
+
+    it('passes channel and executablePath to Playwright when provided', async () => {
+      // Requirement: channel and executablePath should be passed to Playwright launch options
+      // Case: happy-path
+      const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } as any;
+      const browser = { close: vi.fn() };
+      mocks.chromiumLaunchMock.mockResolvedValue(browser);
+      await launchBrowser(
+        {
+          provider: 'playwright',
+          channel: 'chrome',
+          executablePath: '/custom/playwright/path',
+        },
+        logger,
+      );
+      expect(mocks.chromiumLaunchMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          channel: 'chrome',
+          executablePath: '/custom/playwright/path',
+        }),
+      );
     });
 
     it('normalizes Uint8Array screenshots to Buffer in Playwright adapter', async () => {
@@ -347,6 +416,29 @@ describe('browser adapters', () => {
       const buf = await elAdapter!.screenshot({});
       expect(Buffer.isBuffer(buf)).toBe(true);
       expect([...buf]).toEqual([10, 20, 30]);
+
+      const pageBuf = await pageAdapter.screenshot({});
+      expect(pageBuf).toBeInstanceOf(Buffer);
+      expect([...pageBuf]).toEqual([1, 2]);
     });
+
+    it('normalizeScreenshot returns original Buffer instance', async () => {
+      // Requirement: normalizeScreenshot should return the same Buffer instance if input is a Buffer
+      // Case: happy-path (identity)
+      const input = Buffer.from('test');
+      // We can't easily access normalizeScreenshot as it's internal, but we can trigger it via adapter
+      const browser = { newPage: vi.fn().mockResolvedValue({
+        screenshot: vi.fn().mockResolvedValue(input),
+        setViewport: vi.fn(),
+        setDefaultNavigationTimeout: vi.fn(),
+        setDefaultTimeout: vi.fn(),
+      }) };
+      mocks.launchPuppeteerMock.mockResolvedValue(browser);
+      const adapter = await launchBrowser({ provider: 'puppeteer' });
+      const page = await adapter.newPage();
+      const output = await page.screenshot({});
+      expect(output).toBe(input);
+    });
+
   });
 });

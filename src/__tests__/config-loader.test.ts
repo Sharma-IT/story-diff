@@ -195,4 +195,39 @@ describe('resolveStoryDiffConfig', () => {
     vi.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify(42));
     await expect(resolveStoryDiffConfig()).rejects.toThrow(InvalidConfigError);
   });
+
+  it('uses utf8 encoding when reading JSON config file', async () => {
+    // Requirement: readFileSync must use 'utf8' (not empty string or default)
+    // Case: happy-path
+    const readSpy = vi.spyOn(fs, 'readFileSync').mockReturnValue(
+      JSON.stringify({ storybookUrl: 'http://localhost', snapshotsDir: '/tmp' }),
+    );
+    vi.spyOn(fs, 'existsSync').mockImplementation((p) => String(p).endsWith('story-diff.json'));
+
+    await resolveStoryDiffConfig();
+
+    expect(readSpy).toHaveBeenCalledWith(expect.any(String), 'utf8');
+  });
+
+  it('searches only legitimate parent directories and no extra strings', async () => {
+    // Requirement: getSearchDirectories must return exactly the path and its parents, no extras
+    // Case: boundary — verify no "Stryker was here" or other injected strings
+    const startDir = '/a/b/c';
+    vi.spyOn(fs, 'existsSync').mockReturnValue(false);
+
+    try {
+      await resolveStoryDiffConfig({ cwd: startDir });
+    } catch (e) {
+      if (e instanceof ConfigNotFoundError) {
+        // We can't directly inspect searchDirectories as it's internal,
+        // but we can see the calls to existsSync.
+        const checkedPaths = (fs.existsSync as any).mock.calls.map((c: any) => c[0]);
+        // All checked paths should start with '/', not 'Stryker was here'
+        for (const p of checkedPaths) {
+          expect(p).not.toContain('Stryker was here');
+          expect(path.isAbsolute(p)).toBe(true);
+        }
+      }
+    }
+  });
 });
