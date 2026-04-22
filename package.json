@@ -73,6 +73,7 @@
     "eslint": "^10.2.1",
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-functional": "^9.0.4",
+    "globals": "^17.5.0",
     "jest": "^30.3.0",
     "playwright": "^1.59.1",
     "prettier": "^3.8.3",

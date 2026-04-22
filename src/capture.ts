@@ -114,9 +114,10 @@ export async function captureStory(
       }
 
       await element.evaluate((el: unknown) => {
-        if (el instanceof HTMLElement && el.style) {
-          // eslint-disable-next-line functional/immutable-data
-          el.style.display = 'inline-block';
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
+        if (el && typeof el === 'object' && 'style' in el && (el as any).style) {
+          // eslint-disable-next-line functional/immutable-data, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
+          (el as any).style.display = 'inline-block';
         }
       });
 

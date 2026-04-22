@@ -10,7 +10,9 @@ describe('captureStory', () => {
   beforeEach(() => {
     // Mock HTMLElement for node environment tests
     if (typeof global.HTMLElement === 'undefined') {
-      (global as any).HTMLElement = class HTMLElement {};
+      (global as any).HTMLElement = class HTMLElement {
+        public style: any;
+      };
     }
 
     dummyLogger = {
