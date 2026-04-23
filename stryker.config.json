@@ -2,6 +2,9 @@
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "packageManager": "npm",
   "reporters": ["html", "clear-text", "progress"],
+  "htmlReporter": {
+    "fileName": "reports/mutation/mutation.html"
+  },
   "testRunner": "vitest",
   "testRunnerNodeArgs": [],
   "coverageAnalysis": "all",

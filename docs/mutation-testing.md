@@ -98,17 +98,27 @@ Conditions where the mutation doesn't change observable behaviour due to surroun
 
 ## Running Mutation Tests
 
+Locally:
+
 ```bash
-npx stryker run
+npm run test:mutation
 ```
 
 The HTML report is generated at `reports/mutation/mutation.html`.
+
+## CI Integration
+
+Mutation testing runs automatically on **every push** via the `mutation-test` job in `.github/workflows/ci.yml`. It runs in parallel with the main test job and:
+
+1. Executes `npm run test:mutation` against the full source.
+2. Uploads the HTML mutation report as a CI artifact (`mutation-report`) with 14-day retention.
+3. **Fails the push** if any new mutant survives.
 
 ## Maintaining 100% Coverage
 
 When adding new code:
 
 1. Write tests first (TDD red-green-refactor).
-2. Run `npx stryker run` to verify no new surviving mutants.
+2. Run `npm run test:mutation` to verify no new surviving mutants.
 3. If a mutant is genuinely equivalent, add a `// Stryker disable` comment with an inline reason explaining why.
 4. Update this document if adding a new category of equivalent mutant.

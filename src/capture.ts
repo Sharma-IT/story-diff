@@ -116,8 +116,8 @@ export async function captureStory(
       }
 
       await element.evaluate((el: unknown) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
         // Stryker disable next-line ConditionalExpression: Equivalent mutant — el is always a DOM element (object) in browser context; subsequent 'style' in el guard prevents any observable difference
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access
         if (el && typeof el === 'object' && 'style' in el && (el as any).style) {
           // eslint-disable-next-line functional/immutable-data, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any
           (el as any).style.display = 'inline-block';

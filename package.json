@@ -29,7 +29,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "test:mutation": "npx stryker run"
   },
   "keywords": [
     "storybook",
