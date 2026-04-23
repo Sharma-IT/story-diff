@@ -1398,4 +1398,554 @@ describe('StoryDiff - Mutation Coverage', () => {
     expect(customLogger).toHaveBeenCalledWith('info', 'Creating new baseline: brand-new');
     await diff2.teardown();
   });
+
+  it('snapshotPath includes exact snapshotsDir and snapshotName in comparison with existing baseline', async () => {
+    // Requirement: snapshotPath = `${snapshotsDir}/${snapshotName}.png` (not '')
+    // Case: happy-path — verify path construction when baseline exists
+    const baseline = path.join(tempDir, 'existing-snap.png');
+    fs.writeFileSync(baseline, Buffer.from('baseline-data'));
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost',
+      snapshotsDir: tempDir,
+    });
+    await diff.setup();
+    const { compareImages } = await import('../compare.js');
+    (compareImages as any).mockReturnValueOnce({
+      match: true,
+      diffPixels: 0,
+      diffPercentage: 0,
+      diffImage: null,
+    });
+    const result = await diff.compareWithBaseline(Buffer.from('x'), 'existing-snap');
+    expect(result.snapshotPath).toBe(`${tempDir}/existing-snap.png`);
+    expect(result.snapshotPath).toContain(tempDir);
+    expect(result.snapshotPath).toContain('existing-snap');
+    await diff.teardown();
+  });
+
+  it('else-if branch logs warning when compareResult.match is false (not skipped)', async () => {
+    // Requirement: } else if (!compareResult.match) { logger.warn(...) } must execute
+    // Mutant: if (false) would skip this branch
+    // Case: boundary — mismatch without diffImage so diffPath is null
+    const baseline = path.join(tempDir, 'no-diff-img.png');
+    fs.writeFileSync(baseline, Buffer.from('baseline'));
+    const customLogger = vi.fn();
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost',
+      snapshotsDir: tempDir,
+      logger: { level: 'debug', customLogger },
+    });
+    await diff.setup();
+    const { compareImages } = await import('../compare.js');
+    (compareImages as any).mockReturnValueOnce({
+      match: false,
+      diffPixels: 10,
+      diffPercentage: 2.5,
+      diffImage: null, // no diff image — triggers the else-if branch
+    });
+    await expect(
+      diff.assertMatchesBaseline('s', { snapshotName: 'no-diff-img' }),
+    ).rejects.toThrow();
+    // The else-if branch should log the warning
+    expect(customLogger).toHaveBeenCalledWith(
+      'warn',
+      'Visual difference detected: no-diff-img (2.50%)',
+    );
+    await diff.teardown();
+  });
+
+  it('optional chaining on config?.browser?.provider does not crash when browser is undefined', async () => {
+    // Requirement: config.browser?.provider === 'playwright' uses optional chaining
+    // Mutant: config.browser.provider would crash when browser is undefined
+    // Case: boundary — no browser config at all
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost',
+      snapshotsDir: tempDir,
+      comparison: { useNativeSnapshot: true },
+      // no browser config — browser is undefined
+    });
+    await diff.setup();
+    // Should NOT take native snapshot path since provider is not 'playwright'
+    const baselinePath = path.join(tempDir, 'no-browser-config.png');
+    fs.writeFileSync(baselinePath, Buffer.from('baseline'));
+    const { compareImages } = await import('../compare.js');
+    (compareImages as any).mockReturnValueOnce({
+      match: true,
+      diffPixels: 0,
+      diffPercentage: 0,
+      diffImage: null,
+    });
+    const result = await diff.assertMatchesBaseline('s', { snapshotName: 'no-browser-config' });
+    expect(result.match).toBe(true);
+    // Should NOT have called playwright expect
+    expect(mocks.playwrightExpectMock).not.toHaveBeenCalled();
+    await diff.teardown();
+  });
+
+  it('getConfig returns early when both storybookUrl and snapshotsDir are set (not empty block)', async () => {
+    // Requirement: if (this.config?.storybookUrl && this.config.snapshotsDir) { return ... }
+    // Mutant: empty block {} would skip the return, falling through to resolveStoryDiffConfig
+    // Case: happy-path — config has both fields, should NOT call resolveStoryDiffConfig
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost',
+      snapshotsDir: tempDir,
+    });
+    await diff.setup();
+    // If the block were empty, setup would try resolveStoryDiffConfig and fail
+    // Success here proves the block executes
+    await diff.teardown();
+  });
+
+  it('getConfig optional chaining does not crash when config is null', async () => {
+    // Requirement: this.config?.storybookUrl uses optional chaining
+    // Mutant: this.config.storybookUrl would crash when config is null
+    // Case: boundary — config starts as null (no constructor config)
+    // This will fall through to resolveStoryDiffConfig which throws if no config found
+    const diff = new StoryDiff();
+    await expect(diff.setup()).rejects.toThrow();
+  });
+
+  it('getConfig conditional checks both storybookUrl AND snapshotsDir (not short-circuited)', async () => {
+    // Requirement: both conditions must be checked — mutant replaces && with ||
+    // Case: boundary — only storybookUrl set, no snapshotsDir
+    const diff = new StoryDiff({ storybookUrl: 'http://localhost' } as any);
+    // Should fall to resolveStoryDiffConfig since snapshotsDir is missing
+    await expect(diff.setup()).rejects.toThrow();
+  });
+
+  it('native playwright snapshot: testInfo.snapshotPath check uses typeof function (not empty string or true)', async () => {
+    // Requirement: typeof testInfo.snapshotPath === 'function' must correctly identify function
+    // Mutant: replaces 'function' with '' or uses true/!== 
+    // Case: boundary — testInfo has snapshotPath as a string (not function)
+    const { test: playwrightTest } = await import('@playwright/test');
+    vi.mocked(playwrightTest.info).mockReturnValue({
+      snapshotPath: '/some/path/snapshot.png', // string, NOT function
+    } as any);
+
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost',
+      snapshotsDir: tempDir,
+      browser: { provider: 'playwright' },
+      comparison: { useNativeSnapshot: true },
+    });
+    await diff.setup();
+    const toHaveScreenshotMock = vi.fn().mockResolvedValue(undefined);
+    mocks.playwrightExpectMock.mockReturnValue({ toHaveScreenshot: toHaveScreenshotMock });
+
+    const result = await diff.assertMatchesBaseline('story', { snapshotName: 'typeof-check' });
+    expect(result.match).toBe(true);
+    // snapshotPath should fall back to path.join(snapshotsDir, name) since testInfo.snapshotPath is not a function
+    expect(result.snapshotPath).toBe(path.join(tempDir, 'typeof-check.png'));
+    await diff.teardown();
+
+    // Restore default mock
+    vi.mocked(playwrightTest.info).mockImplementation(() => {
+      throw new Error('No test info');
+    });
+  });
+
+  it('native playwright: test.info() catch block returns undefined (not empty block)', async () => {
+    // Requirement: catch { return undefined; } must return undefined so testInfo is undefined
+    // Mutant: empty catch {} would leave testInfo as whatever the throw produces
+    // Case: boundary — test.info() throws, testInfo should be undefined
+    const { test: playwrightTest } = await import('@playwright/test');
+    vi.mocked(playwrightTest.info).mockImplementation(() => {
+      throw new Error('No test running');
+    });
+
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost',
+      snapshotsDir: tempDir,
+      browser: { provider: 'playwright' },
+      comparison: { useNativeSnapshot: true },
+    });
+    await diff.setup();
+    const toHaveScreenshotMock = vi.fn().mockResolvedValue(undefined);
+    mocks.playwrightExpectMock.mockReturnValue({ toHaveScreenshot: toHaveScreenshotMock });
+
+    const result = await diff.assertMatchesBaseline('story', { snapshotName: 'catch-block' });
+    expect(result.match).toBe(true);
+    // Should use path.join fallback since testInfo is undefined
+    expect(result.snapshotPath).toBe(path.join(tempDir, 'catch-block.png'));
+    await diff.teardown();
+  });
+
+  it('native playwright: failureThreshold conditional must be guarded (not always true)', async () => {
+    // Requirement: if (comparison.failureThreshold !== undefined) must guard
+    // Mutant: if (true) would always set maxDiffPixels or maxDiffPixelRatio
+    // Case: boundary — no failureThreshold set, options should NOT have maxDiffPixels/Ratio
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost',
+      snapshotsDir: tempDir,
+      browser: { provider: 'playwright' },
+      comparison: { useNativeSnapshot: true }, // no failureThreshold
+    });
+    await diff.setup();
+    const toHaveScreenshotMock = vi.fn().mockResolvedValue(undefined);
+    mocks.playwrightExpectMock.mockReturnValue({ toHaveScreenshot: toHaveScreenshotMock });
+
+    await diff.assertMatchesBaseline('story', { snapshotName: 'no-threshold' });
+    const callArgs = toHaveScreenshotMock.mock.calls[0]![1];
+    expect(callArgs).not.toHaveProperty('maxDiffPixels');
+    expect(callArgs).not.toHaveProperty('maxDiffPixelRatio');
+    await diff.teardown();
+  });
+
+  it('native playwright: manual baseline creation passes exact screenshot options', async () => {
+    // Requirement: playwrightPage.screenshot({ path: snapshotPath, ...pwOptions }) must pass full options
+    // Mutant: {} would omit path and other options
+    const { test: playwrightTest } = await import('@playwright/test');
+    const snapshotPath = path.join(tempDir, 'manual-opts.png');
+    vi.mocked(playwrightTest.info).mockReturnValue({
+      snapshotPath: vi.fn().mockReturnValue(snapshotPath),
+    } as any);
+
+    if (fs.existsSync(snapshotPath)) fs.unlinkSync(snapshotPath);
+
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost',
+      snapshotsDir: tempDir,
+      browser: { provider: 'playwright' },
+      comparison: { useNativeSnapshot: true },
+      failOnMissingBaseline: false,
+    });
+    await diff.setup();
+
+    const screenshotMock = vi.fn().mockResolvedValue(Buffer.from('screenshot-data'));
+    (diff as any).page = {
+      setViewport: vi.fn(),
+      getUnderlyingObject: vi.fn().mockReturnValue({ screenshot: screenshotMock }),
+    };
+
+    const result = await diff.assertMatchesBaseline('story', { snapshotName: 'manual-opts' });
+    expect(result.baselineCreated).toBe(true);
+    expect(result.baselineMissing).toBe(false);
+
+    // Verify screenshot was called with path and pw options
+    expect(screenshotMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        path: snapshotPath,
+        animations: 'disabled',
+        caret: 'hide',
+        scale: 'css',
+      }),
+    );
+
+    await diff.teardown();
+    vi.mocked(playwrightTest.info).mockImplementation(() => {
+      throw new Error('No test info');
+    });
+  });
+
+  it('native playwright: manual baseline log message is exact (not empty)', async () => {
+    // Requirement: this.logger.info(`Creating missing native baseline: ${snapshotPath}`) must include path
+    // Mutant: '' would log empty string
+    const { test: playwrightTest } = await import('@playwright/test');
+    const snapshotPath = path.join(tempDir, 'log-baseline.png');
+    vi.mocked(playwrightTest.info).mockReturnValue({
+      snapshotPath: vi.fn().mockReturnValue(snapshotPath),
+    } as any);
+
+    if (fs.existsSync(snapshotPath)) fs.unlinkSync(snapshotPath);
+
+    const customLogger = vi.fn();
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost',
+      snapshotsDir: tempDir,
+      browser: { provider: 'playwright' },
+      comparison: { useNativeSnapshot: true },
+      failOnMissingBaseline: false,
+      logger: { level: 'debug', customLogger },
+    });
+    await diff.setup();
+
+    const screenshotMock = vi.fn().mockResolvedValue(Buffer.from('data'));
+    (diff as any).page = {
+      setViewport: vi.fn(),
+      getUnderlyingObject: vi.fn().mockReturnValue({ screenshot: screenshotMock }),
+    };
+
+    await diff.assertMatchesBaseline('story', { snapshotName: 'log-baseline' });
+    expect(customLogger).toHaveBeenCalledWith(
+      'info',
+      `Creating missing native baseline: ${snapshotPath}`,
+    );
+
+    await diff.teardown();
+    vi.mocked(playwrightTest.info).mockImplementation(() => {
+      throw new Error('No test info');
+    });
+  });
+
+  it('native playwright: error log message includes errorMessage (not empty)', async () => {
+    // Requirement: this.logger.error(`Native Playwright snapshot failed: ${errorMessage}`)
+    // Mutant: '' would log empty string
+    const customLogger = vi.fn();
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost',
+      snapshotsDir: tempDir,
+      browser: { provider: 'playwright' },
+      comparison: { useNativeSnapshot: true },
+      logger: { level: 'debug', customLogger },
+    });
+    await diff.setup();
+    mocks.playwrightExpectMock.mockReturnValue({
+      toHaveScreenshot: vi.fn().mockRejectedValue(new Error('Pixels mismatch 42%')),
+    });
+    await expect(
+      diff.assertMatchesBaseline('s', { snapshotName: 'err-log' }),
+    ).rejects.toThrow();
+    expect(customLogger).toHaveBeenCalledWith(
+      'error',
+      'Native Playwright snapshot failed: Pixels mismatch 42%',
+    );
+    await diff.teardown();
+  });
+
+  it('runAll logs exact batch start and completion messages (not empty)', async () => {
+    // Requirement: logger.info strings must include component count and snapshot count
+    // Mutant: '' would log empty string
+    const customLogger = vi.fn();
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost',
+      snapshotsDir: tempDir,
+      failOnMissingBaseline: false,
+      logger: { level: 'debug', customLogger },
+    });
+    await diff.setup();
+    await diff.runAll([
+      {
+        componentName: 'Card',
+        storyPath: 'card',
+        stories: ['default', 'outlined'],
+        viewports: ['desktop'],
+      },
+    ]);
+    expect(customLogger).toHaveBeenCalledWith(
+      'info',
+      'Running batch tests for 1 component(s)',
+    );
+    expect(customLogger).toHaveBeenCalledWith(
+      'info',
+      'Batch tests complete: 2 snapshot(s) processed',
+    );
+    await diff.teardown();
+  });
+
+  it('DEFAULT_VIEWPORTS tablet name is exactly tablet (not empty string)', async () => {
+    // Requirement: tablet viewport name must be 'tablet', not ''
+    // Case: boundary — verify via the log string which includes the name
+    const customLogger = vi.fn();
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost',
+      snapshotsDir: tempDir,
+      logger: { level: 'debug', customLogger },
+    });
+    await diff.setup();
+    const mockPage = { setViewport: vi.fn(), getUnderlyingObject: vi.fn() };
+    (diff as any).page = mockPage;
+    await diff.captureStory('foo', { viewport: 'tablet' });
+    expect(customLogger).toHaveBeenCalledWith(
+      'debug',
+      'Setting viewport to tablet (768x1024)',
+    );
+    await diff.teardown();
+  });
+
+  it('DEFAULT_VIEWPORTS desktop name is exactly desktop (not empty string)', async () => {
+    // Requirement: desktop viewport name must be 'desktop', not ''
+    // Case: boundary — verify via the log string which includes the name
+    const customLogger = vi.fn();
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost',
+      snapshotsDir: tempDir,
+      logger: { level: 'debug', customLogger },
+    });
+    await diff.setup();
+    const mockPage = { setViewport: vi.fn(), getUnderlyingObject: vi.fn() };
+    (diff as any).page = mockPage;
+    await diff.captureStory('foo', { viewport: 'desktop' });
+    expect(customLogger).toHaveBeenCalledWith(
+      'debug',
+      'Setting viewport to desktop (1440x900)',
+    );
+    await diff.teardown();
+  });
+
+  it('regex correctly matches each baseline-missing pattern individually (kills .* to . mutants)', async () => {
+    // Requirement: each regex pattern uses .* (match any chars) not just . (single char)
+    // Case: boundary — error messages with multiple chars between key words
+    const patterns = [
+      "A snapshot file   doesn't     exist yet",     // multiple spaces between words
+      'writing       actual to disk',                 // multiple spaces
+      'no    available    snapshot',                   // multiple spaces
+      'snapshot was    not     found',                 // multiple spaces
+      'missing      baseline image',                  // multiple spaces
+    ];
+
+    for (const pattern of patterns) {
+      const diff = new StoryDiff({
+        storybookUrl: 'http://localhost',
+        snapshotsDir: tempDir,
+        browser: { provider: 'playwright' },
+        comparison: { useNativeSnapshot: true },
+      });
+      await diff.setup();
+      mocks.playwrightExpectMock.mockReturnValue({
+        toHaveScreenshot: vi.fn().mockRejectedValue(new Error(pattern)),
+      });
+      const result = await diff.assertMatchesBaseline('s', { snapshotName: `regex-${patterns.indexOf(pattern)}` });
+      expect(result.baselineCreated).toBe(true);
+      await diff.teardown();
+    }
+  });
+
+  it('native playwright: baseline creation logic requires all 4 conditions (testInfo && snapshotPath && !existsSync && !failOnMissingBaseline)', async () => {
+    // Requirement: all conditions in the && chain must be true
+    // Mutant: replacing && with || would trigger baseline creation even when file exists
+    // Case: boundary — file already exists, should NOT create baseline manually
+    const { test: playwrightTest } = await import('@playwright/test');
+    const snapshotPath = path.join(tempDir, 'already-exists.png');
+    fs.writeFileSync(snapshotPath, Buffer.from('existing-baseline'));
+
+    vi.mocked(playwrightTest.info).mockReturnValue({
+      snapshotPath: vi.fn().mockReturnValue(snapshotPath),
+    } as any);
+
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost',
+      snapshotsDir: tempDir,
+      browser: { provider: 'playwright' },
+      comparison: { useNativeSnapshot: true },
+      failOnMissingBaseline: false,
+    });
+    await diff.setup();
+
+    const toHaveScreenshotMock = vi.fn().mockResolvedValue(undefined);
+    mocks.playwrightExpectMock.mockReturnValue({ toHaveScreenshot: toHaveScreenshotMock });
+
+    const result = await diff.assertMatchesBaseline('story', { snapshotName: 'already-exists' });
+    // Should use normal expect path since file exists
+    expect(toHaveScreenshotMock).toHaveBeenCalled();
+    expect(result.baselineCreated).toBe(false);
+
+    await diff.teardown();
+    vi.mocked(playwrightTest.info).mockImplementation(() => {
+      throw new Error('No test info');
+    });
+  });
+
+  it('isRecord(testInfo) check: false when testInfo is undefined (not short-circuited)', async () => {
+    // Requirement: isRecord(testInfo) && typeof testInfo.snapshotPath === 'function'
+    // Mutant: replacing entire expression with false would skip snapshotPath resolution
+    // Case: boundary — test.info() throws, so testInfo is undefined
+    const { test: playwrightTest } = await import('@playwright/test');
+    vi.mocked(playwrightTest.info).mockImplementation(() => {
+      throw new Error('No test info');
+    });
+
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost',
+      snapshotsDir: tempDir,
+      browser: { provider: 'playwright' },
+      comparison: { useNativeSnapshot: true },
+    });
+    await diff.setup();
+    const toHaveScreenshotMock = vi.fn().mockResolvedValue(undefined);
+    mocks.playwrightExpectMock.mockReturnValue({ toHaveScreenshot: toHaveScreenshotMock });
+
+    const result = await diff.assertMatchesBaseline('story', { snapshotName: 'no-testinfo' });
+    // Fallback: path.join(snapshotsDir, 'no-testinfo.png')
+    expect(result.snapshotPath).toBe(path.join(tempDir, 'no-testinfo.png'));
+    await diff.teardown();
+  });
+
+  it('testInfo.snapshotPath result is used when available (not fallback path.join)', async () => {
+    // Requirement: isRecord(testInfo) && typeof testInfo.snapshotPath === 'function'
+    //   must use testInfo.snapshotPath(name) result, NOT path.join(snapshotsDir, name)
+    // Mutant: →false would use fallback, yielding a DIFFERENT path
+    // Case: boundary — testInfo.snapshotPath returns path outside snapshotsDir
+    const { test: playwrightTest } = await import('@playwright/test');
+    const customSnapshotDir = fs.mkdtempSync(path.join(os.tmpdir(), 'custom-snap-'));
+    const customSnapshotPath = path.join(customSnapshotDir, 'custom-testinfo.png');
+
+    vi.mocked(playwrightTest.info).mockReturnValue({
+      snapshotPath: vi.fn().mockReturnValue(customSnapshotPath),
+    } as any);
+
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost',
+      snapshotsDir: tempDir, // snapshotsDir is DIFFERENT from customSnapshotDir
+      browser: { provider: 'playwright' },
+      comparison: { useNativeSnapshot: true },
+    });
+    await diff.setup();
+    const toHaveScreenshotMock = vi.fn().mockResolvedValue(undefined);
+    mocks.playwrightExpectMock.mockReturnValue({ toHaveScreenshot: toHaveScreenshotMock });
+
+    // Pre-create the baseline so it doesn't try manual creation
+    fs.writeFileSync(customSnapshotPath, Buffer.from('baseline'));
+
+    const result = await diff.assertMatchesBaseline('story', { snapshotName: 'custom-testinfo' });
+    expect(result.match).toBe(true);
+    // Key assertion: snapshotPath must be the custom path, NOT path.join(tempDir, 'custom-testinfo.png')
+    expect(result.snapshotPath).toBe(customSnapshotPath);
+    expect(result.snapshotPath).not.toBe(path.join(tempDir, 'custom-testinfo.png'));
+
+    await diff.teardown();
+    fs.rmSync(customSnapshotDir, { recursive: true, force: true });
+
+    // Restore default mock
+    vi.mocked(playwrightTest.info).mockImplementation(() => {
+      throw new Error('No test info');
+    });
+  });
+
+  it('baseline creation uses testInfo snapshotPath (not fallback) when conditions are met', async () => {
+    // Requirement: testInfo && snapshotPath && !existsSync && !failOnMissingBaseline
+    //   must all use && (not ||). Tests the manual baseline creation path.
+    // Mutant: &&→|| at line 273 would short-circuit and create baseline inappropriately
+    // Case: boundary — baseline doesn't exist, custom testInfo.snapshotPath
+    const { test: playwrightTest } = await import('@playwright/test');
+    const customSnapshotDir = fs.mkdtempSync(path.join(os.tmpdir(), 'custom-create-'));
+    const customSnapshotPath = path.join(customSnapshotDir, 'create-test.png');
+
+    vi.mocked(playwrightTest.info).mockReturnValue({
+      snapshotPath: vi.fn().mockReturnValue(customSnapshotPath),
+    } as any);
+
+    // Ensure file does NOT exist
+    if (fs.existsSync(customSnapshotPath)) fs.unlinkSync(customSnapshotPath);
+
+    const diff = new StoryDiff({
+      storybookUrl: 'http://localhost',
+      snapshotsDir: tempDir,
+      browser: { provider: 'playwright' },
+      comparison: { useNativeSnapshot: true },
+      failOnMissingBaseline: false,
+    });
+    await diff.setup();
+
+    const screenshotMock = vi.fn().mockResolvedValue(Buffer.from('data'));
+    (diff as any).page = {
+      setViewport: vi.fn(),
+      getUnderlyingObject: vi.fn().mockReturnValue({ screenshot: screenshotMock }),
+    };
+
+    const result = await diff.assertMatchesBaseline('story', { snapshotName: 'create-test' });
+    expect(result.baselineCreated).toBe(true);
+    // Key: screenshot was called with the CUSTOM path
+    expect(screenshotMock).toHaveBeenCalledWith(
+      expect.objectContaining({ path: customSnapshotPath }),
+    );
+    expect(result.snapshotPath).toBe(customSnapshotPath);
+
+    await diff.teardown();
+    fs.rmSync(customSnapshotDir, { recursive: true, force: true });
+
+    vi.mocked(playwrightTest.info).mockImplementation(() => {
+      throw new Error('No test info');
+    });
+  });
 });
+

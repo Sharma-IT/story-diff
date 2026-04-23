@@ -40,6 +40,15 @@ describe('buildStoryUrl', () => {
     expect(url).not.toContain('//iframe');
   });
 
+  it('strips multiple trailing slashes from storybookUrl in buildStoryUrl', () => {
+    // Requirement: regex /\/+$/ must strip all trailing slashes, not just one
+    // Case: boundary — double trailing slash
+    const url = buildStoryUrl('http://localhost:6006//', 'my-story--default');
+    expect(url).toBe('http://localhost:6006/iframe.html?id=my-story--default&viewMode=story');
+    expect(url).not.toContain('///');
+    expect(url).not.toContain('//iframe');
+  });
+
   it('encodes special characters in globals values', () => {
     const url = buildStoryUrl(BASE_URL, 'test--story', {
       label: 'hello world',
@@ -394,5 +403,81 @@ describe('waitForStorybookReady', () => {
       goto: vi.fn().mockResolvedValue(null),
     } as unknown as PageAdapter;
     await expect(waitForStorybookReady(page, 'http://localhost')).rejects.toThrow();
+  });
+
+  // eslint-disable-next-line no-useless-escape
+  it('strips triple trailing slashes from storybookUrl (kills \/$/ regex mutant)', async () => {
+    // Requirement: regex /\/+$/ must strip multiple trailing slashes, not just one
+    // Case: boundary — triple trailing slash
+    const page = {
+      goto: vi.fn().mockResolvedValue({ ok: () => true, status: () => 200 }),
+      waitForSelector: vi.fn(),
+    } as unknown as PageAdapter;
+    await waitForStorybookReady(page, 'http://localhost:6006///');
+    expect(page.goto).toHaveBeenCalledWith('http://localhost:6006', expect.any(Object));
+  });
+
+  it('logger?.error for HTTP status includes status number (not empty string)', async () => {
+    // Requirement: logger?.error(`Storybook returned HTTP ${String(response.status())}`) must include status
+    // Case: error — mutant replaces string literal with ''
+    const page = {
+      goto: vi.fn().mockResolvedValue({ ok: () => false, status: () => 502 }),
+    } as unknown as PageAdapter;
+    const logger = { error: vi.fn(), debug: vi.fn() } as any;
+    await expect(waitForStorybookReady(page, 'http://localhost', logger)).rejects.toThrow();
+    expect(logger.error).toHaveBeenCalledWith('Storybook returned HTTP 502');
+  });
+
+  it('logger?.debug includes exact selector string during wait loop', async () => {
+    // Requirement: logger?.debug(`Waiting for Storybook selector: ${selector}`) must include selector
+    // Case: happy-path
+    const page = {
+      goto: vi.fn().mockResolvedValue({ ok: () => true, status: () => 200 }),
+      waitForSelector: vi.fn(),
+    } as unknown as PageAdapter;
+    const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } as any;
+    await waitForStorybookReady(page, 'http://localhost', logger);
+    expect(logger.debug).toHaveBeenCalledWith(
+      'Waiting for Storybook selector: #storybook-preview-iframe',
+    );
+  });
+
+  it('logger?.error for no selectors uses exact message (not empty string)', async () => {
+    // Requirement: logger?.error('Storybook UI did not load - no expected selectors found')
+    // Case: error — all selectors fail
+    const page = {
+      goto: vi.fn().mockResolvedValue({ ok: () => true, status: () => 200 }),
+      waitForSelector: vi.fn().mockRejectedValue(new Error('timeout')),
+    } as unknown as PageAdapter;
+    const logger = { error: vi.fn(), debug: vi.fn() } as any;
+    await expect(waitForStorybookReady(page, 'http://localhost', logger)).rejects.toThrow();
+    expect(logger.error).toHaveBeenCalledWith(
+      'Storybook UI did not load - no expected selectors found',
+    );
+  });
+
+  it('optional chaining on logger works for no-selectors-found path', async () => {
+    // Requirement: logger?.error optional chaining must not crash when logger is undefined
+    // Case: error — all selectors fail with no logger
+    const page = {
+      goto: vi.fn().mockResolvedValue({ ok: () => true, status: () => 200 }),
+      waitForSelector: vi.fn().mockRejectedValue(new Error('timeout')),
+    } as unknown as PageAdapter;
+    // No logger passed — should not throw TypeError
+    await expect(waitForStorybookReady(page, 'http://localhost')).rejects.toThrow(
+      StorybookConnectionError,
+    );
+  });
+
+  it('optional chaining on logger works for HTTP error path', async () => {
+    // Requirement: logger?.error optional chaining must not crash when logger is undefined
+    // Case: error — bad HTTP status with no logger
+    const page = {
+      goto: vi.fn().mockResolvedValue({ ok: () => false, status: () => 500 }),
+    } as unknown as PageAdapter;
+    // No logger passed — should not throw TypeError
+    await expect(waitForStorybookReady(page, 'http://localhost')).rejects.toThrow(
+      StorybookConnectionError,
+    );
   });
 });

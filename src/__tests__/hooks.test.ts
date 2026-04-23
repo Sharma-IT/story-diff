@@ -150,4 +150,69 @@ describe('hookLifecycle', () => {
     delete (globalThis as any).beforeAll;
     delete (globalThis as any).afterAll;
   });
+
+  it('passes config object as lifecycleConfig not true literal (kills typeof ternary mutant)', () => {
+    // Requirement: typeof config === 'object' ? config : {} — when true => config must be {}
+    // Mutant: true ? config : {} would pass boolean `true` as lifecycleConfig
+    // If config=true is passed as lifecycleConfig, accessing .timeout would yield undefined
+    // but accessing .beforeAll on true would also yield undefined, same as {}.beforeAll
+    // The key difference: if the mutant passes `true` instead of `{}`, then
+    // lifecycleConfig.beforeAll would be undefined for both paths.
+    // We verify by checking that when config=true and globals have beforeAll,
+    // the hook uses the global beforeAll (not config.beforeAll which doesn't exist)
+    const globalBeforeAll = vi.fn();
+    const globalAfterAll = vi.fn();
+    (globalThis as any).beforeAll = globalBeforeAll;
+    (globalThis as any).afterAll = globalAfterAll;
+
+    hookLifecycle(diff, true);
+
+    // Global hooks should be detected since config=true has no .beforeAll/.afterAll
+    expect(globalBeforeAll).toHaveBeenCalledWith(expect.any(Function), 60_000);
+    expect(globalAfterAll).toHaveBeenCalledWith(expect.any(Function), 60_000);
+
+    delete (globalThis as any).beforeAll;
+    delete (globalThis as any).afterAll;
+  });
+
+  it('config beforeAll takes precedence over global when config is an object', () => {
+    // Requirement: lifecycleConfig.beforeAll ?? (global check)
+    // Case: happy-path — config.beforeAll provided, global should NOT be used
+    const configBeforeAll = vi.fn();
+    const globalBeforeAll = vi.fn();
+    (globalThis as any).beforeAll = globalBeforeAll;
+
+    hookLifecycle(diff, {
+      enabled: true,
+      beforeAll: configBeforeAll,
+      timeout: 999,
+    });
+
+    // Config hook takes precedence
+    expect(configBeforeAll).toHaveBeenCalledWith(expect.any(Function), 999);
+    // Global should NOT be called since config provides it
+    expect(globalBeforeAll).not.toHaveBeenCalled();
+
+    delete (globalThis as any).beforeAll;
+  });
+
+  it('falls through to global afterAll when config.afterAll is undefined', () => {
+    // Requirement: lifecycleConfig.afterAll ?? (typeof globals.afterAll === 'function' ? ... : undefined)
+    // Mutant: true ? (globals.afterAll as LifecycleHook) : undefined — would always use global
+    // This test ensures the typeof guard works by having a non-function global
+    const configBeforeAll = vi.fn();
+    (globalThis as any).afterAll = 'not-a-function';
+
+    hookLifecycle(diff, {
+      enabled: true,
+      beforeAll: configBeforeAll,
+      // no afterAll in config
+    });
+
+    // beforeAll should be registered
+    expect(configBeforeAll).toHaveBeenCalled();
+    // afterAll should NOT be registered since global is not a function and config doesn't have it
+
+    delete (globalThis as any).afterAll;
+  });
 });

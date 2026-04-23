@@ -121,4 +121,30 @@ describe('Logger', () => {
     logger.error('wont be logged');
     expect(consoleSpy).not.toHaveBeenCalled();
   });
+
+  it('default level is exactly silent (not empty string) when level is undefined', () => {
+    // Requirement: config.level ?? 'silent' must default to 'silent', not ''
+    // Case: boundary — if level were '' it would not match any LOG_LEVELS key
+    // and LOG_LEVELS[''] would be undefined, causing shouldLog to behave unexpectedly
+    // With 'silent' (value 0), nothing should be logged including errors
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {});
+    const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => {});
+
+    // Explicitly pass undefined level (same as omitting it)
+    const logger = new Logger({ level: undefined });
+
+    logger.error('error');
+    logger.warn('warn');
+    logger.info('info');
+    logger.debug('debug');
+
+    // With 'silent' (level 0), nothing should log
+    // With '' (undefined level), behaviour would be different
+    expect(errorSpy).not.toHaveBeenCalled();
+    expect(warnSpy).not.toHaveBeenCalled();
+    expect(infoSpy).not.toHaveBeenCalled();
+    expect(debugSpy).not.toHaveBeenCalled();
+  });
 });

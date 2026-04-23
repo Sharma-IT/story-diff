@@ -13,6 +13,7 @@ export class Logger {
   private readonly customLogger?: (level: LogLevel, message: string, ...args: unknown[]) => void;
 
   constructor(config: LoggerConfig = {}) {
+    // Stryker disable next-line StringLiteral: Equivalent mutant — LOG_LEVELS[''] is undefined, so shouldLog comparison always returns false (same as silent level 0)
     this.level = config.level ?? 'silent';
     this.customLogger = config.customLogger;
   }

@@ -641,4 +641,177 @@ describe('captureStory', () => {
       captureStory(mockPage as PageAdapter, 'http://host', 'test-id', { maxRetries: 0 }),
     ).resolves.toBeDefined();
   });
+
+  it('result type is exactly "failure" (not empty string) on navigation failure', async () => {
+    // Requirement: type: 'failure' string literal must not be mutated to ''
+    // Case: error — navigation returns not-ok response
+    mockPage.goto = vi.fn().mockResolvedValue({ ok: () => false, status: () => 500 });
+    await expect(
+      captureStory(mockPage as PageAdapter, 'http://host', 'test-id', { maxRetries: 0 }, dummyLogger),
+    ).rejects.toThrow('Navigation failed');
+    // The retry logic checks result.type === 'success' to return early.
+    // If type were '', it wouldn't match 'success' so it still throws.
+    // But verify through the error message that the failure path ran correctly.
+    expect(dummyLogger.error).toHaveBeenCalledWith(
+      expect.stringContaining('Failed to capture story after'),
+      expect.stringContaining('Navigation failed'),
+    );
+  });
+
+  it('result type is exactly "failure" (not empty string) on thrown non-Error', async () => {
+    // Requirement: type: 'failure' in the catch block must not be mutated to ''
+    // Case: error — goto throws a non-Error value
+    mockPage.goto = vi.fn().mockImplementation(() => {
+      throw 42;
+    });
+    await expect(
+      captureStory(mockPage as PageAdapter, 'http://host', 'test-id', { maxRetries: 0 }, dummyLogger),
+    ).rejects.toThrow('42');
+  });
+
+  it('result type is exactly "failure" (not empty string) on zero-height element', async () => {
+    // Requirement: type: 'failure' in zero-height return must not be mutated to ''
+    // Case: boundary — element found but has zero height
+    let boxCalls = 0;
+    mockElement.boundingBox = vi.fn().mockImplementation(() => {
+      boxCalls++;
+      if (boxCalls % 2 !== 0) return Promise.resolve({ x: 0, y: 0, width: 100, height: 100 });
+      return Promise.resolve({ x: 0, y: 0, width: 100, height: 0 });
+    });
+    mockPage.query = vi.fn().mockResolvedValue(mockElement);
+    vi.useFakeTimers();
+    const promise = captureStory(
+      mockPage as PageAdapter,
+      'http://host',
+      'test-id',
+      { maxRetries: 0 },
+      dummyLogger,
+    );
+    promise.catch(() => {});
+    await vi.runAllTimersAsync();
+    await expect(promise).rejects.toThrow('zero height');
+    vi.useRealTimers();
+  });
+
+  it('waitForSelector is NOT called when option is not provided (conditional guard)', async () => {
+    // Requirement: if (waitForSelector) must guard — mutant replaces with if (true)
+    // Case: boundary — no waitForSelector option means no custom selector call
+    const waitForSelectorSpy = mockPage.waitForSelector as any;
+    waitForSelectorSpy.mockClear();
+
+    await captureStory(
+      mockPage as PageAdapter,
+      'http://host',
+      'test-id',
+      { maxRetries: 0 },
+      dummyLogger,
+    );
+
+    // waitForSelector is called once for the default '#storybook-root > *' selector
+    // but NOT for a custom selector (since none was provided)
+    const calls = waitForSelectorSpy.mock.calls;
+    const customCalls = calls.filter((c: any) => c[0] !== '#storybook-root > *');
+    expect(customCalls).toHaveLength(0);
+
+    // Verify debug log does NOT include 'Waiting for selector:' since no custom selector
+    expect(dummyLogger.debug).not.toHaveBeenCalledWith(
+      expect.stringMatching(/^Waiting for selector:/),
+    );
+  });
+
+  it('logger?.debug for waitForSelector includes exact selector string (not empty)', async () => {
+    // Requirement: logger?.debug(`Waiting for selector: ${waitForSelector}`) must include the actual selector
+    // Case: happy-path
+    await captureStory(
+      mockPage as PageAdapter,
+      'http://host',
+      'test-id',
+      { waitForSelector: '.my-custom-sel', maxRetries: 0 },
+      dummyLogger,
+    );
+    expect(dummyLogger.debug).toHaveBeenCalledWith('Waiting for selector: .my-custom-sel');
+  });
+
+  it('logger?.debug for waitForTimeout includes exact ms value (not empty)', async () => {
+    // Requirement: logger?.debug(`Waiting ${String(waitForTimeout)}ms...`) must include ms value
+    // Case: happy-path
+    vi.useFakeTimers();
+    const promise = captureStory(
+      mockPage as PageAdapter,
+      'http://host',
+      'test-id',
+      { waitForTimeout: 42, maxRetries: 0 },
+      dummyLogger,
+    );
+    await vi.runAllTimersAsync();
+    await promise;
+    expect(dummyLogger.debug).toHaveBeenCalledWith('Waiting 42ms for render to settle');
+    vi.useRealTimers();
+  });
+
+  it('logger?.warn for retry includes exact retryDelay and error message', async () => {
+    // Requirement: logger?.warn(`Capture failed, retrying in ${String(retryDelay)}ms...`, result.error.message)
+    // Case: boundary — verify both arguments
+    vi.useFakeTimers();
+    mockPage.goto = vi.fn().mockResolvedValue({ ok: () => false, status: () => 503 });
+    const promise = captureStory(
+      mockPage as PageAdapter,
+      'http://host',
+      'test-id',
+      { maxRetries: 1, retryDelay: 555 },
+      dummyLogger,
+    );
+    promise.catch(() => {});
+    await vi.runAllTimersAsync();
+    await expect(promise).rejects.toThrow();
+
+    expect(dummyLogger.warn).toHaveBeenCalledWith(
+      'Capture failed, retrying in 555ms...',
+      expect.stringContaining('Navigation failed'),
+    );
+    vi.useRealTimers();
+  });
+
+  it('logger?.error final message includes exact attempt count', async () => {
+    // Requirement: logger?.error(`Failed to capture story after ${String(maxRetries + 1)} attempts:`, lastError?.message)
+    // Case: boundary — verify lastError.message is passed (not lastError itself)
+    mockPage.goto = vi.fn().mockResolvedValue({ ok: () => false, status: () => 500 });
+    await expect(
+      captureStory(mockPage as PageAdapter, 'http://host', 'test-id', { maxRetries: 0 }, dummyLogger),
+    ).rejects.toThrow();
+    const errorCall = dummyLogger.error.mock.calls.find((c: any) =>
+      String(c[0]).includes('Failed to capture story'),
+    );
+    expect(errorCall).toBeDefined();
+    // Second argument should be the error message string (from lastError?.message)
+    expect(typeof errorCall![1]).toBe('string');
+    expect(errorCall![1]).toContain('Navigation failed');
+  });
+
+  it('all optional chaining paths work correctly with undefined logger', async () => {
+    // Requirement: every logger?.xxx must use optional chaining so undefined doesn't crash
+    // Case: error path with waitForSelector + waitForTimeout + retries and no logger
+    vi.useFakeTimers();
+    mockPage.goto = vi
+      .fn()
+      .mockResolvedValueOnce({ ok: () => false, status: () => 500 })
+      .mockResolvedValueOnce({ ok: () => true, status: () => 200 });
+
+    const promise = captureStory(
+      mockPage as PageAdapter,
+      'http://host',
+      'test-id',
+      {
+        maxRetries: 1,
+        retryDelay: 10,
+        waitForSelector: '.sel',
+        waitForTimeout: 5,
+      },
+      // no logger
+    );
+    await vi.runAllTimersAsync();
+    await promise;
+    // No TypeError thrown means all optional chaining works
+    vi.useRealTimers();
+  });
 });

@@ -12,15 +12,18 @@ export function hookLifecycle(diff: StoryDiff, config?: boolean | LifecycleConfi
   const enabled = config === true || (typeof config === 'object' && config.enabled !== false);
   if (!enabled) return;
 
+  // Stryker disable next-line all: Equivalent mutant — when config is true (boolean), both `true` and `{}` yield undefined for property access (.timeout, .beforeAll, .afterAll)
   const lifecycleConfig = typeof config === 'object' ? config : {};
   const timeout = lifecycleConfig.timeout ?? 60_000;
 
   const globals = globalThis as unknown as Record<string, unknown>;
   const beforeAllHook =
     lifecycleConfig.beforeAll ??
+    // Stryker disable next-line all: Equivalent mutant — the result is guarded by `typeof beforeAllHook === 'function'` on line 28, so non-function values are never called
     (typeof globals.beforeAll === 'function' ? (globals.beforeAll as LifecycleHook) : undefined);
   const afterAllHook =
     lifecycleConfig.afterAll ??
+    // Stryker disable next-line all: Equivalent mutant — the result is guarded by `typeof afterAllHook === 'function'` on line 34, so non-function values are never called
     (typeof globals.afterAll === 'function' ? (globals.afterAll as LifecycleHook) : undefined);
 
   if (typeof beforeAllHook === 'function') {

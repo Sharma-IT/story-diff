@@ -120,19 +120,23 @@ describe('browser adapters', () => {
   });
 
   describe('Puppeteer adapters', () => {
-    it('exercises all Puppeteer wrapper methods', async () => {
+    it('exercises all Puppeteer wrapper methods with return value assertions', async () => {
+      // Requirement: every delegated method must return its delegate's result (not undefined)
+      // Case: happy-path
+      const expectedBox = { x: 0, y: 0, width: 10, height: 10 };
       const elementHandle = {
-        boundingBox: vi.fn().mockResolvedValue({ x: 0, y: 0, width: 10, height: 10 }),
+        boundingBox: vi.fn().mockResolvedValue(expectedBox),
         evaluate: vi.fn().mockImplementation((fn) => fn('el')),
         screenshot: vi.fn().mockResolvedValue(Buffer.from('foo')),
       };
+      const gotoResponse = { ok: () => true, status: () => 200 };
       const page = {
         setViewport: vi.fn(),
         setDefaultNavigationTimeout: vi.fn(),
         setDefaultTimeout: vi.fn(),
-        goto: vi.fn().mockResolvedValue({ ok: () => true }),
-        waitForFunction: vi.fn(),
-        waitForSelector: vi.fn(),
+        goto: vi.fn().mockResolvedValue(gotoResponse),
+        waitForFunction: vi.fn().mockResolvedValue(undefined),
+        waitForSelector: vi.fn().mockResolvedValue(undefined),
         $: vi.fn().mockResolvedValue(elementHandle),
         screenshot: vi.fn().mockResolvedValue(new Uint8Array([1, 2, 3])),
       };
@@ -150,17 +154,35 @@ describe('browser adapters', () => {
       await pageAdapter.setViewport({ width: 100, height: 100 });
       expect(page.setViewport).toHaveBeenCalled();
 
-      await pageAdapter.goto('http://foo', { waitUntil: 'load', timeout: 1000 });
+      // Assert goto returns the response (not undefined from empty block)
+      const gotoResult = await pageAdapter.goto('http://foo', { waitUntil: 'load', timeout: 1000 });
+      expect(gotoResult).toBe(gotoResponse);
+      expect(page.goto).toHaveBeenCalledWith('http://foo', { waitUntil: 'load', timeout: 1000 });
+
+      // Assert waitForFunction delegates correctly
       await pageAdapter.waitForFunction('1+1', { timeout: 1000 });
+      expect(page.waitForFunction).toHaveBeenCalledWith('1+1', { timeout: 1000 });
+
+      // Assert waitForSelector delegates correctly
       await pageAdapter.waitForSelector('.foo', { timeout: 1000 });
+      expect(page.waitForSelector).toHaveBeenCalledWith('.foo', { timeout: 1000 });
 
       const elAdapter = await pageAdapter.query('.foo');
       expect(elAdapter).toBeDefined();
       expect(elAdapter!.getUnderlyingObject()).toBe(elementHandle);
 
-      await elAdapter!.boundingBox();
-      await elAdapter!.evaluate((x) => x);
-      await elAdapter!.screenshot({});
+      // Assert boundingBox returns the delegate's result (not undefined from empty block)
+      const box = await elAdapter!.boundingBox();
+      expect(box).toEqual(expectedBox);
+
+      // Assert evaluate returns the delegate's result (not undefined from empty block)
+      const evalResult = await elAdapter!.evaluate((x) => x);
+      expect(evalResult).toBe('el');
+
+      // Assert screenshot returns a Buffer (not undefined from empty block)
+      const elShot = await elAdapter!.screenshot({});
+      expect(Buffer.isBuffer(elShot)).toBe(true);
+      expect(elShot.toString()).toBe('foo');
 
       const s1 = await pageAdapter.screenshot({});
       expect(Buffer.isBuffer(s1)).toBe(true);
@@ -291,7 +313,10 @@ describe('browser adapters', () => {
   });
 
   describe('Playwright adapters', () => {
-    it('exercises all Playwright wrapper methods', async () => {
+    it('exercises all Playwright wrapper methods with return values and options', async () => {
+      // Requirement: all delegated methods must return delegate's result and pass correct options
+      // Case: happy-path
+      const waitForMock = vi.fn();
       const locator = {
         boundingBox: vi.fn().mockResolvedValue({ x: 0, y: 0, width: 10, height: 10 }),
         evaluate: vi.fn().mockImplementation((fn) => fn('el')),
@@ -303,10 +328,10 @@ describe('browser adapters', () => {
         setDefaultNavigationTimeout: vi.fn(),
         setDefaultTimeout: vi.fn(),
         goto: vi.fn().mockResolvedValue({ ok: () => true, status: () => 200 }),
-        waitForFunction: vi.fn(),
+        waitForFunction: vi.fn().mockResolvedValue(undefined),
         locator: vi.fn().mockReturnValue({
           first: vi.fn().mockReturnValue({
-            waitFor: vi.fn(),
+            waitFor: waitForMock,
             ...locator,
           }),
         }),
@@ -327,8 +352,16 @@ describe('browser adapters', () => {
       expect(response?.ok()).toBe(true);
       expect(response?.status()).toBe(200);
 
-      await pageAdapter.waitForFunction('1+1', { timeout: 1000 });
-      await pageAdapter.waitForSelector('.bar', { timeout: 1000 });
+      // Assert waitForFunction delegates correctly (not empty block)
+      await pageAdapter.waitForFunction('doc.ready', { timeout: 2000 });
+      expect(page.waitForFunction).toHaveBeenCalledWith('doc.ready', { timeout: 2000 });
+
+      // Assert waitForSelector passes correct options including state:'attached'
+      await pageAdapter.waitForSelector('.bar', { timeout: 5000 });
+      expect(waitForMock).toHaveBeenCalledWith({
+        state: 'attached',
+        timeout: 5000,
+      });
 
       const elAdapter = await pageAdapter.query('.bar');
       expect(elAdapter).toBeDefined();
@@ -420,6 +453,79 @@ describe('browser adapters', () => {
       const pageBuf = await pageAdapter.screenshot({});
       expect(pageBuf).toBeInstanceOf(Buffer);
       expect([...pageBuf]).toEqual([1, 2]);
+    });
+
+    it('normalizeScreenshot preserves exact bytes for Uint8Array input (not empty block)', async () => {
+      // Requirement: if (data instanceof Uint8Array) { return Buffer.from(data); } must execute
+      // Invariant: Buffer.from(Uint8Array) must produce identical byte content
+      // Case: boundary — specifically tests that the Uint8Array branch is NOT an empty block
+      const inputBytes = new Uint8Array([0xff, 0x00, 0xab, 0xcd]);
+      const locator = {
+        boundingBox: vi.fn().mockResolvedValue({ x: 0, y: 0, width: 1, height: 1 }),
+        evaluate: vi.fn().mockResolvedValue(undefined),
+        screenshot: vi.fn().mockResolvedValue(inputBytes),
+        count: vi.fn().mockResolvedValue(1),
+      };
+      const page = {
+        setViewportSize: vi.fn(),
+        setDefaultNavigationTimeout: vi.fn(),
+        setDefaultTimeout: vi.fn(),
+        goto: vi.fn(),
+        waitForFunction: vi.fn(),
+        locator: vi
+          .fn()
+          .mockReturnValue({ first: vi.fn().mockReturnValue({ waitFor: vi.fn(), ...locator }) }),
+        screenshot: vi.fn().mockResolvedValue(Buffer.from('already-buffer')),
+      };
+      const browser = { newPage: vi.fn().mockResolvedValue(page), close: vi.fn() };
+      mocks.chromiumLaunchMock.mockResolvedValue(browser);
+
+      const adapter = await launchBrowser({ provider: 'playwright' });
+      const pageAdapter = await adapter.newPage();
+      const elAdapter = await pageAdapter.query('.x');
+      const result = await elAdapter!.screenshot({});
+      // The empty block mutant would return undefined
+      expect(result).toBeDefined();
+      expect(result).toBeInstanceOf(Buffer);
+      expect(result.length).toBe(4);
+      expect(result[0]).toBe(0xff);
+      expect(result[3]).toBe(0xcd);
+    });
+
+    it('Playwright waitForSelector passes state attached and exact timeout (not empty object or string)', async () => {
+      // Requirement: waitFor must be called with { state: 'attached', timeout: <exact value> }
+      // Case: boundary — mutants replace state with '' or options with {}
+      const waitForMock = vi.fn();
+      const page = {
+        setViewportSize: vi.fn(),
+        setDefaultNavigationTimeout: vi.fn(),
+        setDefaultTimeout: vi.fn(),
+        goto: vi.fn(),
+        waitForFunction: vi.fn(),
+        locator: vi.fn().mockReturnValue({
+          first: vi.fn().mockReturnValue({
+            waitFor: waitForMock,
+            count: vi.fn().mockResolvedValue(0),
+          }),
+        }),
+        screenshot: vi.fn().mockResolvedValue(Buffer.from('x')),
+      };
+      const browser = { newPage: vi.fn().mockResolvedValue(page), close: vi.fn() };
+      mocks.chromiumLaunchMock.mockResolvedValue(browser);
+
+      const adapter = await launchBrowser({ provider: 'playwright' });
+      const pageAdapter = await adapter.newPage();
+      await pageAdapter.waitForSelector('#my-el', { timeout: 7777 });
+
+      expect(waitForMock).toHaveBeenCalledTimes(1);
+      expect(waitForMock).toHaveBeenCalledWith({
+        state: 'attached',
+        timeout: 7777,
+      });
+      // Verify state is exactly 'attached' not ''
+      const callArg = waitForMock.mock.calls[0]![0];
+      expect(callArg.state).toBe('attached');
+      expect(callArg.timeout).toBe(7777);
     });
 
     it('normalizeScreenshot returns original Buffer instance', async () => {
