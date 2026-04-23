@@ -9,8 +9,7 @@ on:
       - main
 
 jobs:
-  test:
-    name: Test
+  CI:
     runs-on: ubuntu-latest
 
     strategy:
