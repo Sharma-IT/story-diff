@@ -133,7 +133,6 @@ describe('resolveStoryDiffConfig', () => {
   });
 
   it('includes precise error detail in InvalidConfigError when config is not an object', async () => {
-    // Requirement: error detail must be 'expected the config file to export an object' (not empty)
     vi.spyOn(fs, 'existsSync').mockImplementation((p) => String(p).endsWith('story-diff.json'));
     vi.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify(null));
     await expect(resolveStoryDiffConfig()).rejects.toThrow(
@@ -142,7 +141,6 @@ describe('resolveStoryDiffConfig', () => {
   });
 
   it('includes precise error detail when storybookUrl is missing or empty', async () => {
-    // Requirement: error detail must be '"storybookUrl" must be a non-empty string' (not empty)
     vi.spyOn(fs, 'existsSync').mockImplementation((p) => String(p).endsWith('story-diff.json'));
     vi.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify({ snapshotsDir: '/tmp' }));
     await expect(resolveStoryDiffConfig()).rejects.toThrow(
@@ -151,7 +149,6 @@ describe('resolveStoryDiffConfig', () => {
   });
 
   it('includes precise error detail when snapshotsDir is missing or empty', async () => {
-    // Requirement: error detail must be '"snapshotsDir" must be a non-empty string' (not empty)
     vi.spyOn(fs, 'existsSync').mockImplementation((p) => String(p).endsWith('story-diff.json'));
     vi.spyOn(fs, 'readFileSync').mockReturnValue(
       JSON.stringify({ storybookUrl: 'http://localhost' }),
@@ -162,8 +159,6 @@ describe('resolveStoryDiffConfig', () => {
   });
 
   it('throws InvalidConfigError when storybookUrl is an empty string (length===0 boundary)', async () => {
-    // Requirement: condition uses || storybookUrl.length === 0 (not || false)
-    // Case: boundary — empty string passes typeof check but fails length check
     vi.spyOn(fs, 'existsSync').mockImplementation((p) => String(p).endsWith('story-diff.json'));
     vi.spyOn(fs, 'readFileSync').mockReturnValue(
       JSON.stringify({ storybookUrl: '', snapshotsDir: '/tmp' }),
@@ -172,8 +167,6 @@ describe('resolveStoryDiffConfig', () => {
   });
 
   it('throws InvalidConfigError when snapshotsDir is an empty string (length===0 boundary)', async () => {
-    // Requirement: condition uses || snapshotsDir.length === 0 (not || false)
-    // Case: boundary — empty string passes typeof check but fails length check
     vi.spyOn(fs, 'existsSync').mockImplementation((p) => String(p).endsWith('story-diff.json'));
     vi.spyOn(fs, 'readFileSync').mockReturnValue(
       JSON.stringify({ storybookUrl: 'http://localhost', snapshotsDir: '' }),
@@ -182,7 +175,6 @@ describe('resolveStoryDiffConfig', () => {
   });
 
   it('throws InvalidConfigError if config is an array (isRecord returns false for arrays)', async () => {
-    // Requirement: isRecord must reject arrays (typeof [] === 'object' but Array.isArray is true)
     // If the typeof check were replaced with true, arrays would pass the first check
     vi.spyOn(fs, 'existsSync').mockImplementation((p) => String(p).endsWith('story-diff.json'));
     vi.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify(['storybookUrl', 'snapshotsDir']));
@@ -190,18 +182,15 @@ describe('resolveStoryDiffConfig', () => {
   });
 
   it('throws InvalidConfigError if config value is a number (not an object)', async () => {
-    // Requirement: typeof check in isRecord must exclude non-objects
     vi.spyOn(fs, 'existsSync').mockImplementation((p) => String(p).endsWith('story-diff.json'));
     vi.spyOn(fs, 'readFileSync').mockReturnValue(JSON.stringify(42));
     await expect(resolveStoryDiffConfig()).rejects.toThrow(InvalidConfigError);
   });
 
   it('uses utf8 encoding when reading JSON config file', async () => {
-    // Requirement: readFileSync must use 'utf8' (not empty string or default)
-    // Case: happy-path
-    const readSpy = vi.spyOn(fs, 'readFileSync').mockReturnValue(
-      JSON.stringify({ storybookUrl: 'http://localhost', snapshotsDir: '/tmp' }),
-    );
+    const readSpy = vi
+      .spyOn(fs, 'readFileSync')
+      .mockReturnValue(JSON.stringify({ storybookUrl: 'http://localhost', snapshotsDir: '/tmp' }));
     vi.spyOn(fs, 'existsSync').mockImplementation((p) => String(p).endsWith('story-diff.json'));
 
     await resolveStoryDiffConfig();
@@ -210,8 +199,6 @@ describe('resolveStoryDiffConfig', () => {
   });
 
   it('searches only legitimate parent directories and no extra strings', async () => {
-    // Requirement: getSearchDirectories must return exactly the path and its parents, no extras
-    // Case: boundary — verify no "Stryker was here" or other injected strings
     const startDir = '/a/b/c';
     vi.spyOn(fs, 'existsSync').mockReturnValue(false);
 

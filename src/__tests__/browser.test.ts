@@ -105,13 +105,10 @@ describe('browser adapters', () => {
     mocks.launchPuppeteerMock.mockResolvedValue(browser);
     const adapter = await launchBrowser();
     await expect(closeBrowser(adapter)).resolves.not.toThrow();
-    // Requirement: close() must actually be called during closeBrowser
     expect(browser.close).toHaveBeenCalledTimes(1);
   });
 
   it('closes browser that closes successfully without throwing', async () => {
-    // Requirement: closeBrowser body must execute browser.close()
-    // Case: happy-path — close() resolves normally
     const browser = { close: vi.fn().mockResolvedValue(undefined) };
     mocks.launchPuppeteerMock.mockResolvedValue(browser);
     const adapter = await launchBrowser();
@@ -121,8 +118,6 @@ describe('browser adapters', () => {
 
   describe('Puppeteer adapters', () => {
     it('exercises all Puppeteer wrapper methods with return value assertions', async () => {
-      // Requirement: every delegated method must return its delegate's result (not undefined)
-      // Case: happy-path
       const expectedBox = { x: 0, y: 0, width: 10, height: 10 };
       const elementHandle = {
         boundingBox: vi.fn().mockResolvedValue(expectedBox),
@@ -196,8 +191,6 @@ describe('browser adapters', () => {
     });
 
     it('verifies log messages during launch', async () => {
-      // Requirement: logger must receive precise strings including provider name and headless/headed mode
-      // Case: happy-path — puppeteer, headless=true
       const logger = {
         debug: vi.fn(),
         info: vi.fn(),
@@ -218,8 +211,6 @@ describe('browser adapters', () => {
     });
 
     it('logs "headed" when headless is false', async () => {
-      // Requirement: headless=false must produce 'headed' in the log string
-      // Case: boundary — headless=false
       const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } as any;
       const browser = { close: vi.fn() };
       mocks.launchPuppeteerMock.mockResolvedValue(browser);
@@ -228,8 +219,6 @@ describe('browser adapters', () => {
     });
 
     it('passes headless:false to Puppeteer when headless is explicitly false', async () => {
-      // Requirement: headless===false must set headless:false (not 'shell') in Puppeteer
-      // Case: boundary — the conditional expression headless === false ? false : 'shell'
       const browser = { close: vi.fn() };
       mocks.launchPuppeteerMock.mockResolvedValue(browser);
       await launchBrowser({ headless: false });
@@ -239,8 +228,6 @@ describe('browser adapters', () => {
     });
 
     it('passes headless:shell to Puppeteer when headless is true', async () => {
-      // Requirement: headless===true must set headless:'shell' (not false)
-      // Case: boundary — headless=true
       const browser = { close: vi.fn() };
       mocks.launchPuppeteerMock.mockResolvedValue(browser);
       await launchBrowser({ headless: true });
@@ -250,8 +237,6 @@ describe('browser adapters', () => {
     });
 
     it('uses default provider puppeteer when none is specified', async () => {
-      // Requirement: default provider must be 'puppeteer', not empty string
-      // Case: boundary — no config at all
       const browser = { close: vi.fn() };
       mocks.launchPuppeteerMock.mockResolvedValue(browser);
       await launchBrowser();
@@ -261,8 +246,6 @@ describe('browser adapters', () => {
     });
 
     it('uses an empty args array by default (no extra args)', async () => {
-      // Requirement: default args=[] must not inject unexpected flags
-      // Invariant: args list must equal only DEFAULT_ARGS when no extra args given
       const browser = { close: vi.fn() };
       mocks.launchPuppeteerMock.mockResolvedValue(browser);
       await launchBrowser();
@@ -274,8 +257,6 @@ describe('browser adapters', () => {
     });
 
     it('uses default provider puppeteer when none is specified', async () => {
-      // Requirement: default provider must be 'puppeteer', not empty string
-      // Case: boundary — no config at all
       const browser = {
         newPage: vi.fn().mockResolvedValue({
           setViewport: vi.fn(),
@@ -290,8 +271,6 @@ describe('browser adapters', () => {
     });
 
     it('uses default headless=true when not specified', async () => {
-      // Requirement: when headless is not provided, default is true → headless:'shell'
-      // Case: boundary — no headless config
       const browser = { close: vi.fn() };
       mocks.launchPuppeteerMock.mockResolvedValue(browser);
       await launchBrowser({});
@@ -301,8 +280,6 @@ describe('browser adapters', () => {
     });
 
     it('passes executablePath to Puppeteer when provided', async () => {
-      // Requirement: executablePath should be passed to Puppeteer launch options
-      // Case: happy-path
       const browser = { close: vi.fn() };
       mocks.launchPuppeteerMock.mockResolvedValue(browser);
       await launchBrowser({ executablePath: '/custom/path' });
@@ -314,8 +291,6 @@ describe('browser adapters', () => {
 
   describe('Playwright adapters', () => {
     it('exercises all Playwright wrapper methods with return values and options', async () => {
-      // Requirement: all delegated methods must return delegate's result and pass correct options
-      // Case: happy-path
       const waitForMock = vi.fn();
       const locator = {
         boundingBox: vi.fn().mockResolvedValue({ x: 0, y: 0, width: 10, height: 10 }),
@@ -352,11 +327,9 @@ describe('browser adapters', () => {
       expect(response?.ok()).toBe(true);
       expect(response?.status()).toBe(200);
 
-      // Assert waitForFunction delegates correctly (not empty block)
       await pageAdapter.waitForFunction('doc.ready', { timeout: 2000 });
       expect(page.waitForFunction).toHaveBeenCalledWith('doc.ready', { timeout: 2000 });
 
-      // Assert waitForSelector passes correct options including state:'attached'
       await pageAdapter.waitForSelector('.bar', { timeout: 5000 });
       expect(waitForMock).toHaveBeenCalledWith({
         state: 'attached',
@@ -389,8 +362,6 @@ describe('browser adapters', () => {
     });
 
     it('logs Playwright engine when launching', async () => {
-      // Requirement: logger should log the Playwright browser engine
-      // Case: happy-path
       const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } as any;
       const browser = { close: vi.fn() };
       mocks.chromiumLaunchMock.mockResolvedValue(browser);
@@ -399,8 +370,6 @@ describe('browser adapters', () => {
     });
 
     it('passes channel and executablePath to Playwright when provided', async () => {
-      // Requirement: channel and executablePath should be passed to Playwright launch options
-      // Case: happy-path
       const logger = { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } as any;
       const browser = { close: vi.fn() };
       mocks.chromiumLaunchMock.mockResolvedValue(browser);
@@ -421,8 +390,6 @@ describe('browser adapters', () => {
     });
 
     it('normalizes Uint8Array screenshots to Buffer in Playwright adapter', async () => {
-      // Requirement: screenshot returning Uint8Array must be converted to Buffer
-      // Case: boundary — Uint8Array path in normalizeScreenshot
       const locator = {
         boundingBox: vi.fn().mockResolvedValue({ x: 0, y: 0, width: 5, height: 5 }),
         evaluate: vi.fn().mockImplementation((fn: any) => fn('el')),
@@ -456,9 +423,6 @@ describe('browser adapters', () => {
     });
 
     it('normalizeScreenshot preserves exact bytes for Uint8Array input (not empty block)', async () => {
-      // Requirement: if (data instanceof Uint8Array) { return Buffer.from(data); } must execute
-      // Invariant: Buffer.from(Uint8Array) must produce identical byte content
-      // Case: boundary — specifically tests that the Uint8Array branch is NOT an empty block
       const inputBytes = new Uint8Array([0xff, 0x00, 0xab, 0xcd]);
       const locator = {
         boundingBox: vi.fn().mockResolvedValue({ x: 0, y: 0, width: 1, height: 1 }),
@@ -493,8 +457,6 @@ describe('browser adapters', () => {
     });
 
     it('Playwright waitForSelector passes state attached and exact timeout (not empty object or string)', async () => {
-      // Requirement: waitFor must be called with { state: 'attached', timeout: <exact value> }
-      // Case: boundary — mutants replace state with '' or options with {}
       const waitForMock = vi.fn();
       const page = {
         setViewportSize: vi.fn(),
@@ -529,22 +491,21 @@ describe('browser adapters', () => {
     });
 
     it('normalizeScreenshot returns original Buffer instance', async () => {
-      // Requirement: normalizeScreenshot should return the same Buffer instance if input is a Buffer
-      // Case: happy-path (identity)
       const input = Buffer.from('test');
       // We can't easily access normalizeScreenshot as it's internal, but we can trigger it via adapter
-      const browser = { newPage: vi.fn().mockResolvedValue({
-        screenshot: vi.fn().mockResolvedValue(input),
-        setViewport: vi.fn(),
-        setDefaultNavigationTimeout: vi.fn(),
-        setDefaultTimeout: vi.fn(),
-      }) };
+      const browser = {
+        newPage: vi.fn().mockResolvedValue({
+          screenshot: vi.fn().mockResolvedValue(input),
+          setViewport: vi.fn(),
+          setDefaultNavigationTimeout: vi.fn(),
+          setDefaultTimeout: vi.fn(),
+        }),
+      };
       mocks.launchPuppeteerMock.mockResolvedValue(browser);
       const adapter = await launchBrowser({ provider: 'puppeteer' });
       const page = await adapter.newPage();
       const output = await page.screenshot({});
       expect(output).toBe(input);
     });
-
   });
 });

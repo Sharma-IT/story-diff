@@ -242,9 +242,8 @@ export class StoryDiff {
     const testInfo = ((): unknown => {
       try {
         return test.info();
-      }
-      // Stryker disable next-line all: Equivalent mutant — IIFE catch implicitly returns undefined when block is empty, same as explicit return undefined
-      catch {
+      } catch {
+        // Stryker disable next-line all: Equivalent mutant — IIFE catch implicitly returns undefined when block is empty, same as explicit return undefined
         return undefined;
       }
     })();

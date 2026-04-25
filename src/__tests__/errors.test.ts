@@ -75,8 +75,6 @@ describe('Errors', () => {
   });
 
   it('ViewportNotFoundError separates available viewports with comma+space', () => {
-    // Requirement: available.join(', ') must use ', ' separator (not '')
-    // Case: boundary — multiple available viewports
     const error = new ViewportNotFoundError('huge', ['mobile', 'tablet', 'desktop']);
     expect(error.message).toContain('mobile, tablet, desktop');
     // If join('') were used: 'mobiletabletdesktop' — the comma+space must be present
@@ -84,8 +82,6 @@ describe('Errors', () => {
   });
 
   it('ConfigNotFoundError separates file names with comma+space', () => {
-    // Requirement: fileNames.join(', ') must use ', ' separator (not '')
-    // Case: boundary — multiple file names
     const error = new ConfigNotFoundError(['story-diff.config.mjs', 'story-diff.json']);
     expect(error.message).toContain('story-diff.config.mjs, story-diff.json');
     expect(error.message).toContain(', ');

@@ -41,8 +41,6 @@ describe('buildStoryUrl', () => {
   });
 
   it('strips multiple trailing slashes from storybookUrl in buildStoryUrl', () => {
-    // Requirement: regex /\/+$/ must strip all trailing slashes, not just one
-    // Case: boundary — double trailing slash
     const url = buildStoryUrl('http://localhost:6006//', 'my-story--default');
     expect(url).toBe('http://localhost:6006/iframe.html?id=my-story--default&viewMode=story');
     expect(url).not.toContain('///');
@@ -74,8 +72,6 @@ describe('buildStoryUrl', () => {
   });
 
   it('strips multiple trailing slashes from storybookUrl', async () => {
-    // Requirement: regex /\/+$/ must strip multiple trailing slashes, not just one
-    // Case: boundary - double trailing slash
     const page = {
       goto: vi.fn().mockResolvedValue({ ok: () => true, status: () => 200 }),
       waitForSelector: vi.fn(),
@@ -85,7 +81,6 @@ describe('buildStoryUrl', () => {
   });
 
   it('uses exact goto options: waitUntil=domcontentloaded with given timeout', async () => {
-    // Requirement: goto must use waitUntil:'domcontentloaded' (not '' or other)
     const page = {
       goto: vi.fn().mockResolvedValue({ ok: () => true, status: () => 200 }),
       waitForSelector: vi.fn(),
@@ -98,7 +93,6 @@ describe('buildStoryUrl', () => {
   });
 
   it('throws with precise HTTP status in error detail when response is not ok', async () => {
-    // Requirement: StorybookConnectionError includes 'HTTP 404' in detail (not '')
     const page = {
       goto: vi.fn().mockResolvedValue({ ok: () => false, status: () => 404 }),
     } as unknown as PageAdapter;
@@ -106,7 +100,6 @@ describe('buildStoryUrl', () => {
   });
 
   it('throws with No response in error detail when goto returns null', async () => {
-    // Requirement: StorybookConnectionError includes 'No response' in detail (not '')
     const page = {
       goto: vi.fn().mockResolvedValue(null),
     } as unknown as PageAdapter;
@@ -114,7 +107,6 @@ describe('buildStoryUrl', () => {
   });
 
   it('response OK check must be active - ok=false throws, ok=true resolves', async () => {
-    // Requirement: if (!response.ok()) block must execute when ok() is false
     const pageBad = {
       goto: vi.fn().mockResolvedValue({ ok: () => false, status: () => 500 }),
     } as unknown as PageAdapter;
@@ -128,7 +120,6 @@ describe('buildStoryUrl', () => {
   });
 
   it('passes exact waitForSelector timeout of 15_000', async () => {
-    // Requirement: waitForSelector called with { timeout: 15_000 } not {}
     const page = {
       goto: vi.fn().mockResolvedValue({ ok: () => true, status: () => 200 }),
       waitForSelector: vi.fn(),
@@ -139,7 +130,6 @@ describe('buildStoryUrl', () => {
   });
 
   it('logs precise selector string in debug (not empty string)', async () => {
-    // Requirement: debug log must include the actual selector string
     const page = {
       goto: vi.fn().mockResolvedValue({ ok: () => true, status: () => 200 }),
       waitForSelector: vi.fn(),
@@ -153,7 +143,6 @@ describe('buildStoryUrl', () => {
   });
 
   it('logs precise error when no selectors are found (not empty string)', async () => {
-    // Requirement: logger.error must say precise message, not ''
     const page = {
       goto: vi.fn().mockResolvedValue({ ok: () => true, status: () => 200 }),
       waitForSelector: vi.fn().mockRejectedValue(new Error('timeout')),
@@ -166,7 +155,6 @@ describe('buildStoryUrl', () => {
   });
 
   it('logs precise error when no response from Storybook (not empty string)', async () => {
-    // Requirement: logger.error must say 'No response from Storybook', not ''
     const page = {
       goto: vi.fn().mockResolvedValue(null),
     } as unknown as PageAdapter;
@@ -176,7 +164,6 @@ describe('buildStoryUrl', () => {
   });
 
   it('does not crash when logger is undefined (optional chaining)', async () => {
-    // Requirement: logger?.error uses optional chaining, no crash when logger is undefined
     const page = {
       goto: vi.fn().mockResolvedValue(null),
     } as unknown as PageAdapter;
@@ -296,8 +283,6 @@ describe('waitForStorybookReady', () => {
   });
 
   it('strips multiple trailing slashes from storybookUrl', async () => {
-    // Requirement: regex /\/+$/ must strip multiple trailing slashes, not just one
-    // Case: boundary - double trailing slash
     const page = {
       goto: vi.fn().mockResolvedValue({ ok: () => true, status: () => 200 }),
       waitForSelector: vi.fn(),
@@ -307,7 +292,6 @@ describe('waitForStorybookReady', () => {
   });
 
   it('uses exact goto options: waitUntil=domcontentloaded with given timeout', async () => {
-    // Requirement: goto must use waitUntil:'domcontentloaded' (not '' or other)
     const page = {
       goto: vi.fn().mockResolvedValue({ ok: () => true, status: () => 200 }),
       waitForSelector: vi.fn(),
@@ -320,7 +304,6 @@ describe('waitForStorybookReady', () => {
   });
 
   it('throws with precise HTTP status in error detail when response is not ok', async () => {
-    // Requirement: StorybookConnectionError includes 'HTTP 404' in detail (not '')
     const page = {
       goto: vi.fn().mockResolvedValue({ ok: () => false, status: () => 404 }),
     } as unknown as PageAdapter;
@@ -328,7 +311,6 @@ describe('waitForStorybookReady', () => {
   });
 
   it('throws with No response in error detail when goto returns null', async () => {
-    // Requirement: StorybookConnectionError includes 'No response' in detail (not '')
     const page = {
       goto: vi.fn().mockResolvedValue(null),
     } as unknown as PageAdapter;
@@ -336,7 +318,6 @@ describe('waitForStorybookReady', () => {
   });
 
   it('response OK check must be active - ok=false throws, ok=true resolves', async () => {
-    // Requirement: if (!response.ok()) block must execute when ok() is false
     const pageBad = {
       goto: vi.fn().mockResolvedValue({ ok: () => false, status: () => 500 }),
     } as unknown as PageAdapter;
@@ -350,7 +331,6 @@ describe('waitForStorybookReady', () => {
   });
 
   it('passes exact waitForSelector timeout of 15_000', async () => {
-    // Requirement: waitForSelector called with { timeout: 15_000 } not {}
     const page = {
       goto: vi.fn().mockResolvedValue({ ok: () => true, status: () => 200 }),
       waitForSelector: vi.fn(),
@@ -361,7 +341,6 @@ describe('waitForStorybookReady', () => {
   });
 
   it('logs precise selector string in debug (not empty string)', async () => {
-    // Requirement: debug log must include the actual selector string
     const page = {
       goto: vi.fn().mockResolvedValue({ ok: () => true, status: () => 200 }),
       waitForSelector: vi.fn(),
@@ -375,7 +354,6 @@ describe('waitForStorybookReady', () => {
   });
 
   it('logs precise error when no selectors are found (not empty string)', async () => {
-    // Requirement: logger.error must say precise message, not ''
     const page = {
       goto: vi.fn().mockResolvedValue({ ok: () => true, status: () => 200 }),
       waitForSelector: vi.fn().mockRejectedValue(new Error('timeout')),
@@ -388,7 +366,6 @@ describe('waitForStorybookReady', () => {
   });
 
   it('logs precise error when no response from Storybook (not empty string)', async () => {
-    // Requirement: logger.error must say 'No response from Storybook', not ''
     const page = {
       goto: vi.fn().mockResolvedValue(null),
     } as unknown as PageAdapter;
@@ -398,7 +375,6 @@ describe('waitForStorybookReady', () => {
   });
 
   it('does not crash when logger is undefined (optional chaining)', async () => {
-    // Requirement: logger?.error uses optional chaining, no crash when logger is undefined
     const page = {
       goto: vi.fn().mockResolvedValue(null),
     } as unknown as PageAdapter;
@@ -407,8 +383,6 @@ describe('waitForStorybookReady', () => {
 
   // eslint-disable-next-line no-useless-escape
   it('strips triple trailing slashes from storybookUrl (kills \/$/ regex mutant)', async () => {
-    // Requirement: regex /\/+$/ must strip multiple trailing slashes, not just one
-    // Case: boundary — triple trailing slash
     const page = {
       goto: vi.fn().mockResolvedValue({ ok: () => true, status: () => 200 }),
       waitForSelector: vi.fn(),
@@ -418,8 +392,6 @@ describe('waitForStorybookReady', () => {
   });
 
   it('logger?.error for HTTP status includes status number (not empty string)', async () => {
-    // Requirement: logger?.error(`Storybook returned HTTP ${String(response.status())}`) must include status
-    // Case: error — mutant replaces string literal with ''
     const page = {
       goto: vi.fn().mockResolvedValue({ ok: () => false, status: () => 502 }),
     } as unknown as PageAdapter;
@@ -429,8 +401,6 @@ describe('waitForStorybookReady', () => {
   });
 
   it('logger?.debug includes exact selector string during wait loop', async () => {
-    // Requirement: logger?.debug(`Waiting for Storybook selector: ${selector}`) must include selector
-    // Case: happy-path
     const page = {
       goto: vi.fn().mockResolvedValue({ ok: () => true, status: () => 200 }),
       waitForSelector: vi.fn(),
@@ -443,8 +413,6 @@ describe('waitForStorybookReady', () => {
   });
 
   it('logger?.error for no selectors uses exact message (not empty string)', async () => {
-    // Requirement: logger?.error('Storybook UI did not load - no expected selectors found')
-    // Case: error — all selectors fail
     const page = {
       goto: vi.fn().mockResolvedValue({ ok: () => true, status: () => 200 }),
       waitForSelector: vi.fn().mockRejectedValue(new Error('timeout')),
@@ -457,8 +425,6 @@ describe('waitForStorybookReady', () => {
   });
 
   it('optional chaining on logger works for no-selectors-found path', async () => {
-    // Requirement: logger?.error optional chaining must not crash when logger is undefined
-    // Case: error — all selectors fail with no logger
     const page = {
       goto: vi.fn().mockResolvedValue({ ok: () => true, status: () => 200 }),
       waitForSelector: vi.fn().mockRejectedValue(new Error('timeout')),
@@ -470,8 +436,6 @@ describe('waitForStorybookReady', () => {
   });
 
   it('optional chaining on logger works for HTTP error path', async () => {
-    // Requirement: logger?.error optional chaining must not crash when logger is undefined
-    // Case: error — bad HTTP status with no logger
     const page = {
       goto: vi.fn().mockResolvedValue({ ok: () => false, status: () => 500 }),
     } as unknown as PageAdapter;

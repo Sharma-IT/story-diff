@@ -812,37 +812,36 @@ describe('StoryDiff - Additional Edge Cases', () => {
   });
 
   it('explicitly throws BaselineMissingError when failOnMissingBaseline is true', async () => {
-    // Requirement: failOnMissingBaseline: true must throw when baseline is missing
     const diff = new StoryDiff({
       storybookUrl: 'http://localhost:6006',
       snapshotsDir: tempDir,
       failOnMissingBaseline: true,
     });
     await diff.setup();
-    await expect(diff.assertMatchesBaseline('some-story', { snapshotName: 'missing' })).rejects.toThrow(
-      BaselineMissingError,
-    );
+    await expect(
+      diff.assertMatchesBaseline('some-story', { snapshotName: 'missing' }),
+    ).rejects.toThrow(BaselineMissingError);
     await diff.teardown();
   });
 
   it('strips component name suffix correctly during name normalization', async () => {
-    // Requirement: normalization should strip "-componentName" suffix from story names
-    // Case: happy-path — story "primary-button" for component "Button" becomes "button-primary"
     const diff = new StoryDiff({
       storybookUrl: 'http://localhost:6006',
       snapshotsDir: tempDir,
       failOnMissingBaseline: false,
     });
     await diff.setup();
-    
+
     // We use runAll as it's the main entry for this normalization logic
-    const results = await diff.runAll([{
-      componentName: 'Toggle',
-      storyPath: 'ui-toggle',
-      stories: ['active-toggle'], // suffix "toggle" matches component "Toggle"
-      viewports: ['desktop']
-    }]);
-    
+    const results = await diff.runAll([
+      {
+        componentName: 'Toggle',
+        storyPath: 'ui-toggle',
+        stories: ['active-toggle'], // suffix "toggle" matches component "Toggle"
+        viewports: ['desktop'],
+      },
+    ]);
+
     expect(results[0]?.snapshotName).toBe('toggle-active-desktop');
     await diff.teardown();
   });
@@ -876,7 +875,6 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('logs precise strings across lifecycle', async () => {
-    // Requirement: Must log exact progress strings locally so mutants replace with '' fail
     const customLogger = vi.fn();
     const diff = new StoryDiff({
       storybookUrl: 'http://foo',
@@ -918,7 +916,6 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('DEFAULT_VIEWPORTS mobile has correct name, width, height', async () => {
-    // Requirement: mobile viewport must be {name:'mobile', width:393, height:852}
     // Mutants: ObjectLiteral={}, StringLiteral name=""
     const diff = new StoryDiff({ storybookUrl: 'http://localhost', snapshotsDir: tempDir });
     await diff.setup();
@@ -930,7 +927,6 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('DEFAULT_VIEWPORTS tablet has correct name, width, height', async () => {
-    // Requirement: tablet viewport must be {name:'tablet', width:768, height:1024}
     const diff = new StoryDiff({ storybookUrl: 'http://localhost', snapshotsDir: tempDir });
     await diff.setup();
     const mockPage = { setViewport: vi.fn(), getUnderlyingObject: vi.fn() };
@@ -941,7 +937,6 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('DEFAULT_VIEWPORTS desktop has correct name, width, height', async () => {
-    // Requirement: desktop viewport must be {name:'desktop', width:1440, height:900}
     const diff = new StoryDiff({ storybookUrl: 'http://localhost', snapshotsDir: tempDir });
     await diff.setup();
     const mockPage = { setViewport: vi.fn(), getUnderlyingObject: vi.fn() };
@@ -952,7 +947,6 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('DEFAULT_VIEWPORTS viewport names must not be empty strings', async () => {
-    // Requirement: viewport name fields must be 'mobile'/'tablet'/'desktop' (not '')
     // A ViewportNotFoundError message includes the resolved viewport name
     const diff = new StoryDiff({ storybookUrl: 'http://localhost', snapshotsDir: tempDir });
     await diff.setup();
@@ -965,7 +959,6 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('buildSnapshotName slice uses correct negative unary - (not +)', async () => {
-    // Requirement: story.slice(0, -(comp.length + 1)) must use unary minus not plus
     // If + were used: slice(0, +(comp.length + 1)) = slice(0, 7) = 'primary' (prefix behavior)
     // Expected: for 'primary-button' with comp='button', cleanStory='primary'
     // snapshotName = 'button-primary-desktop'
@@ -988,7 +981,6 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('runAll uses desktop as default viewport when test.viewports is undefined', async () => {
-    // Requirement: test.viewports ?? ['desktop'] must default to ['desktop'] not ['']
     const diff = new StoryDiff({
       storybookUrl: 'http://localhost',
       snapshotsDir: tempDir,
@@ -1009,8 +1001,6 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('globals conditional: mergedGlobals.length>0 (not >=0) controls URL params', async () => {
-    // Requirement: Object.keys(mergedGlobals).length > 0 (not >= 0) guards globals injection
-    // Case: boundary - empty globals object must produce globals=undefined (no url param)
     const diff = new StoryDiff({
       storybookUrl: 'http://localhost',
       snapshotsDir: tempDir,
@@ -1029,7 +1019,6 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('getConfig condition checks both storybookUrl AND snapshotsDir (not just one)', async () => {
-    // Requirement: if (this.config && this.config.storybookUrl && this.config.snapshotsDir)
     // Mutant: if (true && this.config.snapshotsDir) - would skip even when storybookUrl missing
     // A config with no storybookUrl should fall to resolveStoryDiffConfig (which throws ConfigNotFoundError)
     const diff = new StoryDiff({ snapshotsDir: tempDir } as any);
@@ -1039,7 +1028,6 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('compareWithBaseline returns match=false with baselineMissing=true on missing baseline', async () => {
-    // Requirement: match:false and baselineCreated:false (not true) on missing baseline with failOnMissingBaseline
     const diff = new StoryDiff({
       storybookUrl: 'http://localhost',
       snapshotsDir: tempDir,
@@ -1054,7 +1042,6 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('compareWithBaseline snapshotPath includes snapshotsDir and snapshotName.png', async () => {
-    // Requirement: snapshotPath=`${snapshotsDir}/${snapshotName}.png` (not empty string)
     const diff = new StoryDiff({
       storybookUrl: 'http://localhost',
       snapshotsDir: tempDir,
@@ -1067,7 +1054,6 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('assertNativePlaywrightSnapshot baselineMissing=false on success (not true)', async () => {
-    // Requirement: baselineMissing:false (not true) in successful native snapshot return
     const diff = new StoryDiff({
       storybookUrl: 'http://localhost',
       snapshotsDir: tempDir,
@@ -1103,7 +1089,6 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('regex pattern matches "writing actual" in error messages', async () => {
-    // Requirement: regex must include 'writing.*actual' pattern (mutants remove .*)
     const diff = new StoryDiff({
       storybookUrl: 'http://localhost',
       snapshotsDir: tempDir,
@@ -1120,7 +1105,6 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('regex pattern matches "no snapshot" error message', async () => {
-    // Requirement: regex must include 'no.*snapshot' pattern
     const diff = new StoryDiff({
       storybookUrl: 'http://localhost',
       snapshotsDir: tempDir,
@@ -1137,7 +1121,6 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('regex pattern matches "snapshot not found" error message', async () => {
-    // Requirement: regex must include 'snapshot.*not.*found' pattern
     const diff = new StoryDiff({
       storybookUrl: 'http://localhost',
       snapshotsDir: tempDir,
@@ -1154,7 +1137,6 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('regex pattern matches "missing baseline" error message', async () => {
-    // Requirement: regex must include 'missing.*baseline' pattern
     const diff = new StoryDiff({
       storybookUrl: 'http://localhost',
       snapshotsDir: tempDir,
@@ -1171,7 +1153,6 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('regex uses || not && between the baseline-detection patterns', async () => {
-    // Requirement: LogicalOperator mutant changes || to &&
     // Each pattern alone must trigger baseline detection
     const diff = new StoryDiff({
       storybookUrl: 'http://localhost',
@@ -1190,7 +1171,6 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('errorMessage uses error.message OR String(error) fallback (|| not &&)', async () => {
-    // Requirement: const errorMessage = error.message || String(error)
     // If && were used: errorMessage would always be String(error) since truthy && string = string
     // But for an Error with a message: error.message='foo', String(error)='Error: foo'
     // || => 'foo'    && => 'Error: foo'
@@ -1271,7 +1251,6 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('assertNativePlaywrightSnapshot: useNativeSnapshot=false skips native path', async () => {
-    // Requirement: the && condition requires BOTH useNativeSnapshot AND provider=playwright
     // Mutant: || would allow either condition to trigger native snapshot
     const file = path.join(tempDir, 'no-native.png');
     fs.writeFileSync(file, Buffer.from('baseline'));
@@ -1297,7 +1276,6 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('diffPath is set when compareResult has diffImage (not a no-op empty block)', async () => {
-    // Requirement: if (!compareResult.match && compareResult.diffImage) block must execute
     // Mutant: empty block {} would skip saveDiffOutput
     const baseline = path.join(tempDir, 'diff-test.png');
     fs.writeFileSync(baseline, Buffer.from('baseline-data'));
@@ -1330,7 +1308,6 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('match===true when compareResult.match is true (not negated)', async () => {
-    // Requirement: if (!compareResult.match && compareResult.diffImage) - negation must be present
     // Mutant: if (compareResult.match && ...) would incorrectly trigger on a match
     const baseline = path.join(tempDir, 'neg-test.png');
     fs.writeFileSync(baseline, Buffer.from('baseline-data'));
@@ -1400,8 +1377,6 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('snapshotPath includes exact snapshotsDir and snapshotName in comparison with existing baseline', async () => {
-    // Requirement: snapshotPath = `${snapshotsDir}/${snapshotName}.png` (not '')
-    // Case: happy-path — verify path construction when baseline exists
     const baseline = path.join(tempDir, 'existing-snap.png');
     fs.writeFileSync(baseline, Buffer.from('baseline-data'));
     const diff = new StoryDiff({
@@ -1424,9 +1399,7 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('else-if branch logs warning when compareResult.match is false (not skipped)', async () => {
-    // Requirement: } else if (!compareResult.match) { logger.warn(...) } must execute
     // Mutant: if (false) would skip this branch
-    // Case: boundary — mismatch without diffImage so diffPath is null
     const baseline = path.join(tempDir, 'no-diff-img.png');
     fs.writeFileSync(baseline, Buffer.from('baseline'));
     const customLogger = vi.fn();
@@ -1455,9 +1428,7 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('optional chaining on config?.browser?.provider does not crash when browser is undefined', async () => {
-    // Requirement: config.browser?.provider === 'playwright' uses optional chaining
     // Mutant: config.browser.provider would crash when browser is undefined
-    // Case: boundary — no browser config at all
     const diff = new StoryDiff({
       storybookUrl: 'http://localhost',
       snapshotsDir: tempDir,
@@ -1483,9 +1454,7 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('getConfig returns early when both storybookUrl and snapshotsDir are set (not empty block)', async () => {
-    // Requirement: if (this.config?.storybookUrl && this.config.snapshotsDir) { return ... }
     // Mutant: empty block {} would skip the return, falling through to resolveStoryDiffConfig
-    // Case: happy-path — config has both fields, should NOT call resolveStoryDiffConfig
     const diff = new StoryDiff({
       storybookUrl: 'http://localhost',
       snapshotsDir: tempDir,
@@ -1497,26 +1466,20 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('getConfig optional chaining does not crash when config is null', async () => {
-    // Requirement: this.config?.storybookUrl uses optional chaining
     // Mutant: this.config.storybookUrl would crash when config is null
-    // Case: boundary — config starts as null (no constructor config)
     // This will fall through to resolveStoryDiffConfig which throws if no config found
     const diff = new StoryDiff();
     await expect(diff.setup()).rejects.toThrow();
   });
 
   it('getConfig conditional checks both storybookUrl AND snapshotsDir (not short-circuited)', async () => {
-    // Requirement: both conditions must be checked — mutant replaces && with ||
-    // Case: boundary — only storybookUrl set, no snapshotsDir
     const diff = new StoryDiff({ storybookUrl: 'http://localhost' } as any);
     // Should fall to resolveStoryDiffConfig since snapshotsDir is missing
     await expect(diff.setup()).rejects.toThrow();
   });
 
   it('native playwright snapshot: testInfo.snapshotPath check uses typeof function (not empty string or true)', async () => {
-    // Requirement: typeof testInfo.snapshotPath === 'function' must correctly identify function
-    // Mutant: replaces 'function' with '' or uses true/!== 
-    // Case: boundary — testInfo has snapshotPath as a string (not function)
+    // Mutant: replaces 'function' with '' or uses true/!==
     const { test: playwrightTest } = await import('@playwright/test');
     vi.mocked(playwrightTest.info).mockReturnValue({
       snapshotPath: '/some/path/snapshot.png', // string, NOT function
@@ -1545,9 +1508,7 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('native playwright: test.info() catch block returns undefined (not empty block)', async () => {
-    // Requirement: catch { return undefined; } must return undefined so testInfo is undefined
     // Mutant: empty catch {} would leave testInfo as whatever the throw produces
-    // Case: boundary — test.info() throws, testInfo should be undefined
     const { test: playwrightTest } = await import('@playwright/test');
     vi.mocked(playwrightTest.info).mockImplementation(() => {
       throw new Error('No test running');
@@ -1571,9 +1532,7 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('native playwright: failureThreshold conditional must be guarded (not always true)', async () => {
-    // Requirement: if (comparison.failureThreshold !== undefined) must guard
     // Mutant: if (true) would always set maxDiffPixels or maxDiffPixelRatio
-    // Case: boundary — no failureThreshold set, options should NOT have maxDiffPixels/Ratio
     const diff = new StoryDiff({
       storybookUrl: 'http://localhost',
       snapshotsDir: tempDir,
@@ -1592,7 +1551,6 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('native playwright: manual baseline creation passes exact screenshot options', async () => {
-    // Requirement: playwrightPage.screenshot({ path: snapshotPath, ...pwOptions }) must pass full options
     // Mutant: {} would omit path and other options
     const { test: playwrightTest } = await import('@playwright/test');
     const snapshotPath = path.join(tempDir, 'manual-opts.png');
@@ -1638,7 +1596,6 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('native playwright: manual baseline log message is exact (not empty)', async () => {
-    // Requirement: this.logger.info(`Creating missing native baseline: ${snapshotPath}`) must include path
     // Mutant: '' would log empty string
     const { test: playwrightTest } = await import('@playwright/test');
     const snapshotPath = path.join(tempDir, 'log-baseline.png');
@@ -1678,7 +1635,6 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('native playwright: error log message includes errorMessage (not empty)', async () => {
-    // Requirement: this.logger.error(`Native Playwright snapshot failed: ${errorMessage}`)
     // Mutant: '' would log empty string
     const customLogger = vi.fn();
     const diff = new StoryDiff({
@@ -1692,9 +1648,7 @@ describe('StoryDiff - Mutation Coverage', () => {
     mocks.playwrightExpectMock.mockReturnValue({
       toHaveScreenshot: vi.fn().mockRejectedValue(new Error('Pixels mismatch 42%')),
     });
-    await expect(
-      diff.assertMatchesBaseline('s', { snapshotName: 'err-log' }),
-    ).rejects.toThrow();
+    await expect(diff.assertMatchesBaseline('s', { snapshotName: 'err-log' })).rejects.toThrow();
     expect(customLogger).toHaveBeenCalledWith(
       'error',
       'Native Playwright snapshot failed: Pixels mismatch 42%',
@@ -1703,7 +1657,6 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('runAll logs exact batch start and completion messages (not empty)', async () => {
-    // Requirement: logger.info strings must include component count and snapshot count
     // Mutant: '' would log empty string
     const customLogger = vi.fn();
     const diff = new StoryDiff({
@@ -1721,10 +1674,7 @@ describe('StoryDiff - Mutation Coverage', () => {
         viewports: ['desktop'],
       },
     ]);
-    expect(customLogger).toHaveBeenCalledWith(
-      'info',
-      'Running batch tests for 1 component(s)',
-    );
+    expect(customLogger).toHaveBeenCalledWith('info', 'Running batch tests for 1 component(s)');
     expect(customLogger).toHaveBeenCalledWith(
       'info',
       'Batch tests complete: 2 snapshot(s) processed',
@@ -1733,8 +1683,6 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('DEFAULT_VIEWPORTS tablet name is exactly tablet (not empty string)', async () => {
-    // Requirement: tablet viewport name must be 'tablet', not ''
-    // Case: boundary — verify via the log string which includes the name
     const customLogger = vi.fn();
     const diff = new StoryDiff({
       storybookUrl: 'http://localhost',
@@ -1745,16 +1693,11 @@ describe('StoryDiff - Mutation Coverage', () => {
     const mockPage = { setViewport: vi.fn(), getUnderlyingObject: vi.fn() };
     (diff as any).page = mockPage;
     await diff.captureStory('foo', { viewport: 'tablet' });
-    expect(customLogger).toHaveBeenCalledWith(
-      'debug',
-      'Setting viewport to tablet (768x1024)',
-    );
+    expect(customLogger).toHaveBeenCalledWith('debug', 'Setting viewport to tablet (768x1024)');
     await diff.teardown();
   });
 
   it('DEFAULT_VIEWPORTS desktop name is exactly desktop (not empty string)', async () => {
-    // Requirement: desktop viewport name must be 'desktop', not ''
-    // Case: boundary — verify via the log string which includes the name
     const customLogger = vi.fn();
     const diff = new StoryDiff({
       storybookUrl: 'http://localhost',
@@ -1765,22 +1708,17 @@ describe('StoryDiff - Mutation Coverage', () => {
     const mockPage = { setViewport: vi.fn(), getUnderlyingObject: vi.fn() };
     (diff as any).page = mockPage;
     await diff.captureStory('foo', { viewport: 'desktop' });
-    expect(customLogger).toHaveBeenCalledWith(
-      'debug',
-      'Setting viewport to desktop (1440x900)',
-    );
+    expect(customLogger).toHaveBeenCalledWith('debug', 'Setting viewport to desktop (1440x900)');
     await diff.teardown();
   });
 
   it('regex correctly matches each baseline-missing pattern individually (kills .* to . mutants)', async () => {
-    // Requirement: each regex pattern uses .* (match any chars) not just . (single char)
-    // Case: boundary — error messages with multiple chars between key words
     const patterns = [
-      "A snapshot file   doesn't     exist yet",     // multiple spaces between words
-      'writing       actual to disk',                 // multiple spaces
-      'no    available    snapshot',                   // multiple spaces
-      'snapshot was    not     found',                 // multiple spaces
-      'missing      baseline image',                  // multiple spaces
+      "A snapshot file   doesn't     exist yet", // multiple spaces between words
+      'writing       actual to disk', // multiple spaces
+      'no    available    snapshot', // multiple spaces
+      'snapshot was    not     found', // multiple spaces
+      'missing      baseline image', // multiple spaces
     ];
 
     for (const pattern of patterns) {
@@ -1794,16 +1732,16 @@ describe('StoryDiff - Mutation Coverage', () => {
       mocks.playwrightExpectMock.mockReturnValue({
         toHaveScreenshot: vi.fn().mockRejectedValue(new Error(pattern)),
       });
-      const result = await diff.assertMatchesBaseline('s', { snapshotName: `regex-${patterns.indexOf(pattern)}` });
+      const result = await diff.assertMatchesBaseline('s', {
+        snapshotName: `regex-${patterns.indexOf(pattern)}`,
+      });
       expect(result.baselineCreated).toBe(true);
       await diff.teardown();
     }
   });
 
   it('native playwright: baseline creation logic requires all 4 conditions (testInfo && snapshotPath && !existsSync && !failOnMissingBaseline)', async () => {
-    // Requirement: all conditions in the && chain must be true
     // Mutant: replacing && with || would trigger baseline creation even when file exists
-    // Case: boundary — file already exists, should NOT create baseline manually
     const { test: playwrightTest } = await import('@playwright/test');
     const snapshotPath = path.join(tempDir, 'already-exists.png');
     fs.writeFileSync(snapshotPath, Buffer.from('existing-baseline'));
@@ -1836,9 +1774,7 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('isRecord(testInfo) check: false when testInfo is undefined (not short-circuited)', async () => {
-    // Requirement: isRecord(testInfo) && typeof testInfo.snapshotPath === 'function'
     // Mutant: replacing entire expression with false would skip snapshotPath resolution
-    // Case: boundary — test.info() throws, so testInfo is undefined
     const { test: playwrightTest } = await import('@playwright/test');
     vi.mocked(playwrightTest.info).mockImplementation(() => {
       throw new Error('No test info');
@@ -1861,10 +1797,7 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('testInfo.snapshotPath result is used when available (not fallback path.join)', async () => {
-    // Requirement: isRecord(testInfo) && typeof testInfo.snapshotPath === 'function'
-    //   must use testInfo.snapshotPath(name) result, NOT path.join(snapshotsDir, name)
-    // Mutant: →false would use fallback, yielding a DIFFERENT path
-    // Case: boundary — testInfo.snapshotPath returns path outside snapshotsDir
+    // Mutant: → false would use fallback, yielding a DIFFERENT path
     const { test: playwrightTest } = await import('@playwright/test');
     const customSnapshotDir = fs.mkdtempSync(path.join(os.tmpdir(), 'custom-snap-'));
     const customSnapshotPath = path.join(customSnapshotDir, 'custom-testinfo.png');
@@ -1902,10 +1835,7 @@ describe('StoryDiff - Mutation Coverage', () => {
   });
 
   it('baseline creation uses testInfo snapshotPath (not fallback) when conditions are met', async () => {
-    // Requirement: testInfo && snapshotPath && !existsSync && !failOnMissingBaseline
-    //   must all use && (not ||). Tests the manual baseline creation path.
-    // Mutant: &&→|| at line 273 would short-circuit and create baseline inappropriately
-    // Case: boundary — baseline doesn't exist, custom testInfo.snapshotPath
+    // Mutant: && → || at line 273 would short-circuit and create baseline inappropriately
     const { test: playwrightTest } = await import('@playwright/test');
     const customSnapshotDir = fs.mkdtempSync(path.join(os.tmpdir(), 'custom-create-'));
     const customSnapshotPath = path.join(customSnapshotDir, 'create-test.png');
@@ -1948,4 +1878,3 @@ describe('StoryDiff - Mutation Coverage', () => {
     });
   });
 });
-

@@ -335,8 +335,6 @@ describe('compareImages', () => {
   });
 
   it('default failureThresholdType is percent and not empty string', () => {
-    // Requirement: default failureThresholdType must be 'percent' — not ''
-    // Case: boundary — omit failureThresholdType; provide failureThreshold=100 which only makes sense for percent
     const img1 = createSolidPng(10, 10, { r: 0, g: 0, b: 0, a: 255 });
     const img2 = createSolidPng(10, 10, { r: 255, g: 255, b: 255, a: 255 });
     // 100% diff. With failureThreshold=100 as percent => match. With failureThreshold=100 as pixel => also match.
@@ -363,8 +361,6 @@ describe('compareImages', () => {
   });
 
   it('size-mismatch path failureThresholdType=pixel uses pixel count correctly', () => {
-    // Requirement: in size-mismatch path, failureThresholdType==='percent' conditional must be correct
-    // Case: boundary — explicitly pixel to verify the else-branch is truly pixel-based
     const small = createSolidPng(10, 10, { r: 0, g: 0, b: 0, a: 255 });
     const large = createSolidPng(20, 20, { r: 0, g: 0, b: 0, a: 255 });
     // maxWidth=20, maxHeight=20, totalPixels=400, diffPixels=400, diffPercentage=100
@@ -387,8 +383,6 @@ describe('compareImages', () => {
   });
 
   it('size-mismatch path failureThresholdType check is not always-true', () => {
-    // Requirement: failureThresholdType === 'percent' in the size-mismatch block must NOT be replaced with true
-    // Invariant: with failureThresholdType='pixel' and threshold=50, 400 diffPixels > 50 => mismatch
     // If the condition were always true, percent branch would run: 100% <= 50 => also mismatch (same result— can't catch this way)
     // Instead, check that with high percent threshold but low pixel threshold, pixel wins
     const small = createSolidPng(10, 10, { r: 0, g: 0, b: 0, a: 255 });

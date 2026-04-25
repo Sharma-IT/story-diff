@@ -152,9 +152,8 @@ type PlaywrightModule = typeof import('playwright');
 async function loadPlaywright(logger?: Logger): Promise<PlaywrightModule> {
   try {
     return await import('playwright');
-  }
-  // Stryker disable all: NoCoverage — this catch block is tested by browser-isolation.test.ts via dynamic import cache-busting, but Stryker's coverage analysis cannot link them
-  catch (error) {
+  } catch (error) {
+    // Stryker disable all: NoCoverage — this catch block is tested by browser-isolation.test.ts via dynamic import cache-busting, but Stryker's coverage analysis cannot link them
     logger?.error('Playwright support requested, but the package is not installed');
 
     if (
