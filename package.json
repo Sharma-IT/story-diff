@@ -21,6 +21,7 @@
     "prepublishOnly": "npm run build && npm run typecheck && npm test",
     "test": "vitest run",
     "test:unit": "vitest run",
+    "test:unit:cov": "vitest run --coverage",
     "test:watch": "vitest",
     "test:e2e": "./e2e/run-e2e.sh",
     "test:e2e:vitest": "vitest run -c e2e/vitest/vitest.config.ts",

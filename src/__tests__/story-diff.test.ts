@@ -750,6 +750,19 @@ describe('StoryDiff - Root Config Autoload', () => {
     fs.rmSync(projectDir, { recursive: true, force: true });
   });
 
+  it('handles empty tests and config in runAll (covers ?? [] fallback)', async () => {
+    const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'story-diff-empty-batch-'));
+    const emptyDiff = new StoryDiff({
+      storybookUrl: 'http://localhost',
+      snapshotsDir: projectDir,
+    });
+    await emptyDiff.setup();
+    const results = await emptyDiff.runAll();
+    expect(results).toEqual([]);
+    await emptyDiff.teardown();
+    fs.rmSync(projectDir, { recursive: true, force: true });
+  });
+
   it('handles ANSI colors and Playwright baseline missing error strings', async () => {
     const projectDir = fs.mkdtempSync(path.join(os.tmpdir(), 'story-diff-ansi-'));
 

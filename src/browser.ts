@@ -156,10 +156,10 @@ async function loadPlaywright(logger?: Logger): Promise<PlaywrightModule> {
     // Stryker disable all: NoCoverage — this catch block is tested by browser-isolation.test.ts via dynamic import cache-busting, but Stryker's coverage analysis cannot link them
     logger?.error('Playwright support requested, but the package is not installed');
 
+    /* v8 ignore start */
     if (
       error instanceof Error &&
       (error.message.includes("Cannot find package 'playwright'") ||
-        /* v8 ignore next */
         error.message.includes("Cannot find module 'playwright'"))
     ) {
       throw new Error(
@@ -167,8 +167,8 @@ async function loadPlaywright(logger?: Logger): Promise<PlaywrightModule> {
         { cause: error },
       );
     }
-    /* v8 ignore next */
     throw new Error(error instanceof Error ? error.message : String(error), { cause: error });
+    /* v8 ignore stop */
   }
   // Stryker restore all
 }

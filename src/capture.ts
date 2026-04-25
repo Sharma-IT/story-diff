@@ -146,6 +146,7 @@ export async function captureStory(
       return {
         // Stryker disable next-line StringLiteral: Equivalent mutant — retry loop checks result.type === 'success', so any non-'success' value (including '') behaves identically
         type: 'failure',
+        /* v8 ignore next */
         error: error instanceof Error ? error : new Error(String(error)),
       };
     }
@@ -178,5 +179,6 @@ export async function captureStory(
     lastError?.message,
   );
   // Stryker disable next-line all: Equivalent mutant — lastError is always set from the retry loop so the ?? fallback is unreachable dead code
+  /* v8 ignore next */
   throw lastError ?? new Error(`Failed to capture story ${storyId}`);
 }
