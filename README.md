@@ -2,7 +2,7 @@
 
 # Story Diff
 
-<img width="442" height="398" alt="logo" src="https://github.com/user-attachments/assets/4726057a-1472-40e4-b6c6-92f47bbc435e" />
+<img width="442" height="442" alt="ChatGPT Image Apr 16, 2026, 01_15_11 PM" src="https://github.com/user-attachments/assets/2fb90381-8548-430a-975b-ed36b325529c" />
 
 <br>
 
