@@ -1,6 +1,6 @@
 {
   "name": "story-diff",
-  "version": "0.5.0",
+  "version": "1.0.0",
   "description": "Test-framework-agnostic visual regression testing for Storybook components using Puppeteer or Playwright",
   "type": "module",
   "main": "./dist/index.js",
