@@ -9,13 +9,12 @@ on:
       - main
 
 jobs:
-  CI:
+  precommit:
+    name: Precommit Checks
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
         node-version: [22]
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
@@ -29,25 +28,31 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Type check
-        run: npm run typecheck
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Run unit tests with coverage
-        run: npm run test:unit:cov
-
-      - name: Upload coverage report
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: coverage-report-node-${{ matrix.node-version }}
-          path: coverage/
-          retention-days: 14
+      - name: Run precommit checks
+        run: npm run precommit
 
       - name: Build
         run: npm run build
+
+  e2e:
+    name: E2E Testing
+    needs: precommit
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [22]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
 
       - name: Install E2E fixture dependencies
         run: npm ci
@@ -71,12 +76,11 @@ jobs:
 
   mutation-test:
     name: Mutation Testing
+    needs: precommit
     runs-on: ubuntu-latest
-
     strategy:
       matrix:
         node-version: [22]
-
     steps:
       - name: Checkout code
         uses: actions/checkout@v6

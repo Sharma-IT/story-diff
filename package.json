@@ -31,7 +31,9 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test:mutation": "npx stryker run"
+    "test:mutation": "npx stryker run",
+    "precommit": "npm run typecheck && npm run lint && npm run format:check && npm run test:unit",
+    "prepare": "husky"
   },
   "keywords": [
     "storybook",
@@ -76,6 +78,7 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-functional": "^9.0.4",
     "globals": "^17.5.0",
+    "husky": "^9.1.7",
     "jest": "^30.3.0",
     "playwright": "^1.59.1",
     "prettier": "^3.8.3",
